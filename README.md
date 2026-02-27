@@ -159,7 +159,7 @@ ai-learning-assistant/
 ## ⚙️ 9. Cài đặt & Chạy dự án
 1️⃣ **Clone project**
 ```bash
-git clone https://github.com/your-username/ai-learning-assistant.git
+git clone https://github.com/Ro810/ai-learning-assistant.git
 cd ai-learning-assistant
 ```
 2️⃣ **Cài đặt Backend**
@@ -195,7 +195,7 @@ npm run dev
 
 **Sinh viên thực hiện:**
 
-- **Họ và tên:** ___________________
-- **Trường:** ___________________
-- **Năm học:** ___________________
+- **Họ và tên:** Trần Đỗ Lan Phương
+- **MSV:** B23DCCN667
+- **Giảng viên hướng dẫn:** Nguyễn Xuân Đức
 
