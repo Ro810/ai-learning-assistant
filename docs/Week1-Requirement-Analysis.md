@@ -31,7 +31,7 @@
 |----|---------|----------------|
 | FR-013 | Sinh câu hỏi trắc nghiệm theo chủ đề | Cao |
 | FR-014 | Điều chỉnh độ khó theo năng lực | Cao |
-| FR-015 | Cung cấp đáp án và lờ giải thích | Cao |
+| FR-015 | Cung cấp đáp án và lời giải thích | Cao |
 | FR-016 | Tạo đề luyện tập mô phỏng | Trung bình |
 
 #### 1.1.5 Phân tích & Theo dõi
@@ -316,13 +316,559 @@ flowchart LR
 
 ## 3. Thiết Kế Cơ Sở Dữ Liệu
 
-*(Đang cập nhật...)*
+### 3.1 Lựa Chọn Cơ Sở Dữ Liệu
+
+Hệ thống sử dụng **MongoDB** (NoSQL Database) với các lý do sau:
+
+| Tiêu chí | Lý do chọn MongoDB |
+|----------|-------------------|
+| **Schema linh hoạt** | Câu hỏi do AI sinh ra có cấu trúc đa dạng (trắc nghiệm, điền khuyết, tự luận). MongoDB cho phép lưu documents không đồng nhất trong cùng collection. |
+| **Scalability** | Dự kiến lưu trữ hàng trăm nghìn câu hỏi. MongoDB dễ scale horizontally với sharding. |
+| **JSON Native** | Dữ liệu lưu dạng BSON tương thích với JavaScript/TypeScript stack, không cần ORM phức tạp. |
+| **Query Performance** | Indexing linh hoạt, hỗ trợ text search cho việc tìm kiếm câu hỏi. |
+| **Development Speed** | Không cần định nghĩa schema cứng nhắc, phù hợp với quá trình phát triển Agile. |
+
+### 3.2 Các Thực Thể Chính (Collections)
+
+| Collection | Mô tả | Mối quan hệ | Ước tính số documents |
+|------------|-------|-------------|----------------------|
+| `users` | Thông tin người dùng, authentication, profile | - | ~10,000 |
+| `subjects` | Môn học và danh sách chủ đề (topics) | topics (embedded) | ~10-20 |
+| `questions` | Câu hỏi do AI sinh ra | reference: topic_ids | ~100,000+ |
+| `assessments` | Bài test đầu vào và kết quả | reference: user_id, subject_id | ~50,000 |
+| `learning_paths` | Lộ trình học cá nhân hóa | reference: user_id, assessment_id | ~10,000 |
+| `practice_sessions` | Bài luyện tập và tiến độ | reference: user_id, question_ids | ~500,000 |
+
+### 3.3 Sơ Đồ Quan Hệ Thực Thể (ERD)
+
+**Xem sơ đồ trực tuyến:** [Mermaid Live Editor](https://mermaid.live/edit#pako:eNq1Vdty2jAQ_RWNngkT2yEEv1HqtPRCaAwvHWY8ir0Ytbbk6pKWAP_eNcHcTFoynepJ1tldnd09Ky9oLBOgPgX1lrNUsXwiCK5xGNyT5fLiQi5INwyDMPwcDEbEJ4Z9B123-RR07wf9wbto2B29R7MZO2E0vO_2Rv1eEJXx-ncDtItlXmRgqpDh-M2HoDeqHEZ3w35vbSUM4-K00QE9eGSZZS_FO2aZWp5Ups93bQy_jINwtGGI0VKp-FNluHdfab1c1sOCALUjsQ32chmshiTiYiL2irZ43pfr7uEbxKafkIgnZPhxB2ijuEgJ5IxnZFwHCqb1T6mSCPsx26FyHY8USk55BrtzphSbkwyYEugdpZJluuYVW6VAmCiDR8ie0VVFvKr3K7gLlkPtsBTlqXywW7HiheFSHLM2suCxPuKzLf05hPbiIKTJ7R7GhSEJn055bDMzr_Ey8wLqhULVYqFq5zkYljDDDqNbzVKIYmkrj20Se4I7J40tgKJSJXh7CtR2vTvGN_low4zVx6X5YUGXpa9rQoHGuhxX_3Au_jv3Lf7AynGSIkL1g9Z5qdbX5JnjUGgjBejDFuG8pJipjgpQMdT6VJvrf874T4rcZJDjpJzfJ9QdDs8jRGXi8Jc20gZNFU-ob5SFBs1B4TODn3Sd14SaGeDoUh-3CUwZek7oRJRuBRNfpcwrTyVtOqP-FF8T_LIFih82f5vtKT4pCaheKX_qu56zDkL9Bf1F_XaredX2Lr1W56bjtjzXa9A59R3PbbqO03LbN47retdX3qpBn9bXOs1Lt-PeONfOtetcdrx2a_UbV5UUbA)
+
+
+**Chú thích ký hiệu:**
+- `PK`: Primary Key (khóa chính)
+- `FK`: Foreign Key (khóa ngoại)
+- `UK`: Unique Key (duy nhất)
+- `||--o{`: Quan hệ 1-nhiều (1 bên bắt buộc, nhiều bên tùy chọn)
+
+### 3.4 Chi Tiết Schema Các Collection
+
+#### 3.4.1 Collection: `users`
+Lưu trữ thông tin ngườ dùng và cấu hình học tập.
+
+```javascript
+{
+  _id: ObjectId,
+  email: String,                    // Unique, indexed
+  password_hash: String,            // bcrypt hashed
+  profile: {
+    name: String,
+    avatar_url: String?,            // Optional
+    grade: String?                  // "10", "11", "12", etc.
+  },
+  learning_goals: [{                // Mục tiêu học tập
+    subject_id: ObjectId,           // ref: subjects
+    target_level: String,           // "basic" | "intermediate" | "advanced"
+    target_date: Date
+  }],
+  current_level: {                  // Cache kết quả đánh giá
+    subject_id: ObjectId,
+    level: String,
+    weak_topics: [ObjectId]         // ref: subject.topics
+  },
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+#### 3.4.2 Collection: `subjects`
+Lưu trữ môn học và chủ đề con (embedded).
+
+```javascript
+{
+  _id: ObjectId,
+  name: String,                     // "Toán", "Lý", "Hóa"
+  code: String,                     // Unique: "math", "physics"
+  description: String,
+  topics: [{                        // Embedded sub-documents
+    _id: ObjectId,
+    name: String,                   // "Đạo hàm", "Tích phân"
+    parent_id: ObjectId?            // Cho nested topics
+  }],
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+#### 3.4.3 Collection: `questions`
+Lưu trữ câu hỏi do AI sinh ra.
+
+```javascript
+{
+  _id: ObjectId,
+  topic_ids: [ObjectId],            // ref: subject.topics
+  difficulty: Number,               // 1 | 2 | 3 (cơ bản → nâng cao)
+  type: String,                     // "multiple_choice" | "fill_blank" | "essay"
+  content: {
+    question_text: String,
+    options: [{                      // Cho trắc nghiệm
+      id: String,                   // "A", "B", "C", "D"
+      text: String,
+      is_correct: Boolean
+    }],
+    correct_answer: String,         // "A" hoặc text đáp án
+    explanation: String             // AI giải thích
+  },
+  metadata: {
+    generated_by: String,           // "claude" | "gpt"
+    generation_prompt: String,      // Prompt đã dùng
+    verified: Boolean               // Admin đã review?
+  },
+  usage_count: Number,              // Số lần dùng
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+#### 3.4.4 Collection: `assessments`
+Bài test đầu vào đánh giá trình độ.
+
+```javascript
+{
+  _id: ObjectId,
+  user_id: ObjectId,                // ref: users
+  subject_id: ObjectId,             // ref: subjects
+  status: String,                   // "in_progress" | "completed"
+  questions: [{                     // Embedded snapshot
+    question_id: ObjectId,
+    question_snapshot: Object,      // Copy từ questions
+    user_answer: String?,
+    is_correct: Boolean?,
+    time_spent_seconds: Number?
+  }],
+  results: {
+    score: Number,                  // 0-100
+    correct_count: Number,
+    total_questions: Number,
+    skill_analysis: [{              // Phân tích theo topic
+      topic_id: ObjectId,
+      correct: Number,
+      total: Number,
+      level: String                 // "weak" | "average" | "strong"
+    }],
+    recommended_level: String       // "basic" | "intermediate" | "advanced"
+  },
+  completed_at: Date?,
+  created_at: Date
+}
+```
+
+#### 3.4.5 Collection: `learning_paths`
+Lộ trình học cá nhân hóa.
+
+```javascript
+{
+  _id: ObjectId,
+  user_id: ObjectId,                // ref: users
+  subject_id: ObjectId,             // ref: subjects
+  based_on_assessment_id: ObjectId, // ref: assessments
+  status: String,                   // "active" | "completed" | "paused"
+  start_date: Date,
+  target_date: Date,
+  milestones: [{                    // Embedded milestones
+    _id: ObjectId,
+    title: String,                  // "Tuần 1: Đạo hàm cơ bản"
+    topic_ids: [ObjectId],
+    difficulty: Number,
+    estimated_days: Number,
+    resources: [{                   // Tài nguyên học
+      type: String,                 // "video" | "article" | "exercise"
+      title: String,
+      url: String?
+    }],
+    completed_at: Date?,
+    completion_rate: Number         // 0-100
+  }],
+  progress_percent: Number,         // 0-100
+  created_at: Date,
+  updated_at: Date
+}
+```
+
+#### 3.4.6 Collection: `practice_sessions`
+Bài luyện tập với adaptive difficulty.
+
+```javascript
+{
+  _id: ObjectId,
+  user_id: ObjectId,                // ref: users
+  topic_ids: [ObjectId],            // Các topic đang luyện
+  mode: String,                     // "adaptive" | "exam_simulation"
+  settings: {
+    question_count: Number,
+    difficulty_range: [Number, Number],  // [1, 3]
+    time_limit_minutes: Number?
+  },
+  questions: [{
+    question_id: ObjectId,
+    order: Number,
+    user_answer: String?,
+    is_correct: Boolean?,
+    time_spent_seconds: Number?,
+    hint_used: Boolean
+  }],
+  adaptive_state: {                 // Cho adaptive mode
+    current_difficulty: Number,
+    consecutive_correct: Number,
+    consecutive_wrong: Number
+  },
+  results: {
+    score: Number,
+    accuracy_percent: Number,
+    avg_time_per_question: Number,
+    weak_topic_ids: [ObjectId]
+  },
+  status: String,                   // "in_progress" | "completed" | "abandoned"
+  started_at: Date,
+  completed_at: Date?,
+  created_at: Date
+}
+```
+
+### 3.5 Chiến Lược Index
+
+```javascript
+// users: unique email
+users.createIndex({ email: 1 }, { unique: true });
+
+// subjects: unique code
+subjects.createIndex({ code: 1 }, { unique: true });
+subjects.createIndex({ "topics._id": 1 });
+
+// questions: query theo topic + difficulty
+questions.createIndex({ topic_ids: 1, difficulty: 1 });
+questions.createIndex({ difficulty: 1 });
+questions.createIndex({ usage_count: -1 });  // Popular questions first
+questions.createIndex({ "content.question_text": "text" });  // Text search
+
+// assessments: query theo user
+assessments.createIndex({ user_id: 1, created_at: -1 });
+assessments.createIndex({ user_id: 1, subject_id: 1, status: 1 });
+
+// learning_paths: query theo user + status
+learning_paths.createIndex({ user_id: 1, status: 1 });
+
+// practice_sessions: query theo user
+practice_sessions.createIndex({ user_id: 1, started_at: -1 });
+practice_sessions.createIndex({ user_id: 1, status: 1 });
+```
+
+### 3.6 Quyết Định Embed vs Reference
+
+| Scenario | Quyết định | Lý do |
+|----------|-----------|-------|
+| Topics trong Subject | **Embed** | Topics thuộc về 1 subject, ít thay đổi, thường query cùng nhau. |
+| Milestones trong LearningPath | **Embed** | 1 learning path có ~10-20 milestones, query atomic. |
+| Questions trong Assessment | **Embed** | Assessment cần snapshot questions (để lưu history đúng/sai). |
+| User trong các collections | **Reference** | User được dùng ở nhiều nơi, cần consistency. |
+| Questions trong PracticeSession | **Reference** | Questions được reuse, cần update usage_count. |
+
 
 ---
 
 ## 4. Sơ Đồ Kiến Trúc Hệ Thống
 
-*(Đang cập nhật...)*
+### 4.1 Tổng Quan Kiến Trúc
+
+Hệ thống sử dụng kiến trúc **3-tier** (3 lớp) với các thành phần chính:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLIENT LAYER                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │   Browser    │  │   Browser    │  │ Mobile App   │          │
+│  │   (Web)      │  │   (Web)      │  │   (Future)   │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+└─────────┼─────────────────┼─────────────────┼──────────────────┘
+          │                 │                 │
+          └─────────────────┴─────────────────┘
+                            │ HTTPS
+┌───────────────────────────▼─────────────────────────────────────┐
+│                      API GATEWAY LAYER                           │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │              Express.js REST API Server                   │  │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │  │
+│  │  │   Auth     │ │ Assessment │ │  Practice  │           │  │
+│  │  │   Routes   │ │   Routes   │ │   Routes   │           │  │
+│  │  └────────────┘ └────────────┘ └────────────┘           │  │
+│  │  ┌────────────┐ ┌────────────┐ ┌────────────┐           │  │
+│  │  │   Auth     │ │ Assessment │ │  Practice  │           │  │
+│  │  │  Service   │ │  Service   │ │  Service   │           │  │
+│  │  └────────────┘ └────────────┘ └────────────┘           │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ Mongoose ODM
+┌───────────────────────────▼─────────────────────────────────────┐
+│                     DATA LAYER                                   │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │    MongoDB      │  │   Redis Cache   │  │   AI Service    │  │
+│  │   (Primary)     │  │   (Future)      │  │  (Claude/GPT)   │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 4.2 Kiến Trúc Từng Thành Phần
+
+#### 4.2.1 Frontend (Presentation Layer)
+
+| Thành phần | Công nghệ | Mô tả |
+|------------|-----------|-------|
+| Framework | Next.js 15 | React framework với App Router, hỗ trợ SSR/SSG |
+| Language | TypeScript | Type-safe development |
+| Styling | Tailwind CSS v4 | Utility-first CSS framework |
+| UI Components | shadcn/ui | Radix UI + Tailwind, accessible by default |
+| State Management | React Context | Quản lý auth, user state |
+| Data Fetching | Fetch API | Native fetch với async/await |
+
+**Cấu trúc thư mục Frontend:**
+```
+frontend/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── layout.tsx          # Root layout với providers
+│   │   ├── page.tsx            # Landing page
+│   │   ├── dashboard/          # Dashboard pages
+│   │   │   ├── layout.tsx      # Dashboard shell
+│   │   │   └── page.tsx        # Dashboard home
+│   │   ├── auth/               # Auth pages
+│   │   │   ├── login/
+│   │   │   └── register/
+│   │   └── assessment/         # Assessment flow
+│   │
+│   ├── components/
+│   │   ├── ui/                 # shadcn/ui components
+│   │   │   ├── button.tsx
+│   │   │   ├── card.tsx
+│   │   │   └── input.tsx
+│   │   ├── auth/               # Auth-specific components
+│   │   ├── dashboard/          # Dashboard components
+│   │   └── assessment/         # Assessment components
+│   │
+│   ├── lib/
+│   │   ├── utils.ts            # Utility functions (cn helper)
+│   │   └── api.ts              # API client functions
+│   │
+│   ├── hooks/                  # Custom React hooks
+│   │   └── useAuth.ts
+│   │
+│   └── types/                  # TypeScript types
+│       └── index.ts
+│
+├── components.json             # shadcn/ui config
+└── tailwind.config.ts
+```
+
+#### 4.2.2 Backend (Application Layer)
+
+| Thành phần | Công nghệ | Mô tả |
+|------------|-----------|-------|
+| Runtime | Node.js | JavaScript runtime |
+| Framework | Express.js | Web framework cho REST API |
+| Language | TypeScript | Type-safe backend |
+| Database | MongoDB | NoSQL document database |
+| ODM | Mongoose | Object Data Modeling cho MongoDB |
+| Auth | JWT | JSON Web Token cho authentication |
+| Validation | Zod | Schema validation |
+| Password Hash | bcryptjs | Bcrypt hashing |
+
+**Cấu trúc thư mục Backend:**
+```
+backend/
+├── src/
+│   ├── config/
+│   │   └── database.ts         # MongoDB connection
+│   │
+│   ├── middleware/
+│   │   └── auth.middleware.ts  # JWT verification
+│   │
+│   ├── models/                 # Mongoose models
+│   │   ├── user.model.ts
+│   │   ├── subject.model.ts
+│   │   ├── question.model.ts
+│   │   ├── assessment.model.ts
+│   │   ├── learning-path.model.ts
+│   │   ├── practice-session.model.ts
+│   │   └── index.ts
+│   │
+│   ├── routes/                 # API routes
+│   │   ├── auth.routes.ts
+│   │   ├── subject.routes.ts
+│   │   ├── assessment.routes.ts
+│   │   ├── practice.routes.ts
+│   │   └── user.routes.ts
+│   │
+│   ├── services/               # Business logic
+│   │   ├── auth.service.ts
+│   │   ├── ai.service.ts
+│   │   ├── assessment.service.ts
+│   │   └── practice.service.ts
+│   │
+│   ├── types/                  # TypeScript interfaces
+│   │   └── index.ts
+│   │
+│   ├── app.ts                  # Express app setup
+│   └── server.ts               # Entry point
+│
+├── .env.example
+├── package.json
+└── tsconfig.json
+```
+
+#### 4.2.3 Database (Data Layer)
+
+| Thành phần | Công nghệ | Mô tả |
+|------------|-----------|-------|
+| Primary DB | MongoDB | Document store cho dữ liệu ứng dụng |
+| Cache (Future) | Redis | Session cache, rate limiting |
+| File Storage (Future) | Cloud Storage | User avatars, attachments |
+
+**Các Collections:**
+- `users`: Authentication và profile
+- `subjects`: Môn học và chủ đề
+- `questions`: Câu hỏi AI-generated
+- `assessments`: Bài test đầu vào
+- `learning_paths`: Lộ trình học
+- `practice_sessions`: Bài luyện tập
+
+### 4.3 Luồng Dữ Liệu (Data Flow)
+
+#### 4.3.1 Luồng Đăng Ký / Đăng Nhập
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant DB as MongoDB
+
+    U->>F: Nhập email, password
+    F->>B: POST /api/auth/register
+    B->>B: Validate input (Zod)
+    B->>B: Hash password (bcryptjs)
+    B->>DB: Create user document
+    DB-->>B: User created
+    B->>B: Generate JWT token
+    B-->>F: Return {token, user}
+    F->>F: Store token (localStorage)
+    F-->>U: Redirect to dashboard
+```
+
+#### 4.3.2 Luồng Làm Bài Test Đầu Vào
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant AI as AI Service
+    participant DB as MongoDB
+
+    U->>F: Chọn môn học
+    F->>B: POST /api/assessments
+    B->>AI: Request generate questions
+    AI-->>B: Return 10-20 questions
+    B->>DB: Create assessment document
+    DB-->>B: Assessment created
+    B-->>F: Return assessment
+    F-->>U: Hiển thị câu hỏi
+
+    U->>F: Submit answers
+    F->>B: POST /api/assessments/:id/submit
+    B->>B: Calculate score
+    B->>AI: Request skill analysis
+    AI-->>B: Return analysis
+    B->>DB: Update assessment results
+    B-->>F: Return results
+    F-->>U: Hiển thị kết quả
+```
+
+#### 4.3.3 Luồng Luyện Tập
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant AI as AI Service
+    participant DB as MongoDB
+
+    U->>F: Chọn chủ đề luyện tập
+    F->>B: POST /api/practice-sessions
+    B->>DB: Query questions by topic/difficulty
+    DB-->>B: Return questions
+    B->>DB: Create practice session
+    B-->>F: Return session
+    F-->>U: Hiển thị câu hỏi
+
+    U->>F: Trả lời câu hỏi
+    F->>B: PATCH /api/practice-sessions/:id/answer
+    B->>B: Check correctness
+    B->>B: Update adaptive state
+    B->>AI: Request next question (adaptive)
+    AI-->>B: Return question
+    B->>DB: Update session
+    B-->>F: Return next question
+    F-->>U: Hiển thị câu tiếp theo
+```
+
+### 4.4 API Endpoints
+
+#### Authentication
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/auth/register` | Đăng ký tài khoản | No |
+| POST | `/api/auth/login` | Đăng nhập | No |
+| GET | `/api/auth/me` | Lấy thông tin user hiện tại | Yes |
+
+#### Subjects
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/subjects` | Danh sách môn học | No |
+| GET | `/api/subjects/:id` | Chi tiết môn học | No |
+| GET | `/api/subjects/:id/topics` | Danh sách chủ đề | No |
+
+#### Assessments
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/assessments` | Tạo bài test mới | Yes |
+| GET | `/api/assessments/:id` | Chi tiết bài test | Yes |
+| POST | `/api/assessments/:id/submit` | Nộp bài test | Yes |
+| GET | `/api/assessments` | Lịch sử bài test | Yes |
+
+#### Practice
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/api/practice-sessions` | Tạo session luyện tập | Yes |
+| GET | `/api/practice-sessions/:id` | Chi tiết session | Yes |
+| PATCH | `/api/practice-sessions/:id/answer` | Trả lời câu hỏi | Yes |
+| POST | `/api/practice-sessions/:id/complete` | Kết thúc session | Yes |
+
+#### Learning Paths
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/api/learning-paths` | Danh sách lộ trình | Yes |
+| GET | `/api/learning-paths/:id` | Chi tiết lộ trình | Yes |
+| POST | `/api/learning-paths/:id/progress` | Cập nhật tiến độ | Yes |
+
+### 4.5 Bảo Mật
+
+| Layer | Biện pháp | Mô tả |
+|-------|-----------|-------|
+| Transport | HTTPS | Mã hóa kết nối client-server |
+| Authentication | JWT | Token-based auth, expires in 7 days |
+| Password | bcryptjs | Hash với salt rounds = 12 |
+| Input Validation | Zod | Validate tất cả request body |
+| CORS | cors middleware | Chỉ cho phép origin cụ thể |
+| Rate Limiting | (Future) | express-rate-limit |
 
 ---
 

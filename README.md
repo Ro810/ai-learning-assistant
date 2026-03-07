@@ -106,42 +106,64 @@ Mở rộng trong tương lai:
 
 ## 🏗 7. Kiến trúc hệ thống
 ```
-Frontend (React)
-       ↓
-Backend (REST API - Express)
-       ↓
-AI Service (LLM API)
+Frontend (Next.js + TypeScript + Tailwind)
+       ↓ REST API
+Backend (Express + TypeScript + Mongoose)
+       ↓ HTTP
+AI Service (Claude/GPT API)
        ↓
 MongoDB Database
 ```
+
+**Stack chi tiết:**
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
+| Backend | Express.js, TypeScript, Mongoose ODM |
+| Database | MongoDB |
+| AI | Claude API / OpenAI GPT |
+| Auth | JWT (jsonwebtoken) + bcryptjs |
+| Validation | Zod |
+
+**Luồng xử lý chính:**
 **Luồng xử lý chính:**
 Người dùng → Làm bài test → Backend gọi AI → Lưu kết quả → Phân tích → Tạo lộ trình học
 
 ## 📂 8. Cấu trúc dự án
 ```
 ai-learning-assistant/
-├── backend/                  # Xử lý nghiệp vụ & API
-│   ├── server.js
-│   ├── config/
-│   ├── models/
-│   │   ├── User.js
-│   │   ├── TestResult.js
-│   │   └── LearningPlan.js
-│   ├── routes/
-│   │   ├── authRoutes.js
-│   │   ├── quizRoutes.js
-│   │   └── planRoutes.js
-│   ├── controllers/
-│   ├── services/
-│   │   └── aiService.js
-│   └── middleware/
-│
-├── frontend/                 # Giao diện người dùng
+├── backend/                  # Express + TypeScript + MongoDB
 │   ├── src/
-│   │   ├── pages/
+│   │   ├── config/
+│   │   │   └── database.ts          # MongoDB connection
+│   │   ├── middleware/
+│   │   │   └── auth.middleware.ts   # JWT auth
+│   │   ├── models/
+│   │   │   ├── user.model.ts        # User schema
+│   │   │   ├── subject.model.ts     # Subject + topics
+│   │   │   ├── question.model.ts    # AI questions
+│   │   │   ├── assessment.model.ts  # Entry tests
+│   │   │   ├── learning-path.model.ts
+│   │   │   ├── practice-session.model.ts
+│   │   │   └── index.ts
+│   │   ├── routes/
+│   │   │   └── auth.routes.ts       # Auth API
+│   │   ├── services/
+│   │   │   └── auth.service.ts      # Auth logic
+│   │   ├── types/
+│   │   │   └── index.ts             # TS interfaces
+│   │   ├── app.ts                   # Express setup
+│   │   └── server.ts                # Entry point
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── .env.example
+│
+├── frontend/                 # Giao diện người dùng (Next.js)
+│   ├── src/
+│   │   ├── app/
 │   │   ├── components/
 │   │   ├── services/
-│   │   └── App.js
+│   │   └── ...
 │
 ├── docs/                     # Tài liệu & báo cáo tiến độ
 │   ├── Week1-Requirement-Analysis.md
@@ -168,7 +190,7 @@ cd backend
 npm install
 npm start
 ```
-3️⃣ **Cài đặt Frontend**
+3️⃣ **Cài đặt Frontend (Next.js)**
 ```bash
 cd frontend
 npm install
