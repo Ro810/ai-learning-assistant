@@ -192,6 +192,8 @@ flowchart LR
 
 ---
 
-**Date:** 27/02/2026
-**Author:** Tran Do Lan Phuong
+**Ngày:** 27/02/2026
+
+**Sinh Viên:** Trần Đỗ Lan Phương
+
 **MSV:** B23DCCN667
