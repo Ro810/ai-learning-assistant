@@ -135,25 +135,27 @@ ai-learning-assistant/
 ├── backend/                  # Express + TypeScript + MongoDB
 │   ├── src/
 │   │   ├── config/
-│   │   │   └── database.ts          # MongoDB connection
+│   │   │   ├── database.ts          # MongoDB connection
+│   │   │   ├── mongoose-setup.ts    # Env vars + mongoose config
+│   │   │   └── swagger.ts          # Swagger config
 │   │   ├── middleware/
-│   │   │   └── auth.middleware.ts   # JWT auth
+│   │   │   └── auth.middleware.ts  # JWT auth
 │   │   ├── models/
-│   │   │   ├── user.model.ts        # User schema
-│   │   │   ├── subject.model.ts     # Subject + topics
-│   │   │   ├── question.model.ts    # AI questions
-│   │   │   ├── assessment.model.ts  # Entry tests
+│   │   │   ├── user.model.ts       # User schema
+│   │   │   ├── subject.model.ts   # Subject + topics
+│   │   │   ├── question.model.ts  # AI questions
+│   │   │   ├── assessment.model.ts # Entry tests
 │   │   │   ├── learning-path.model.ts
 │   │   │   ├── practice-session.model.ts
 │   │   │   └── index.ts
 │   │   ├── routes/
-│   │   │   └── auth.routes.ts       # Auth API
+│   │   │   └── auth.routes.ts    # Auth API
 │   │   ├── services/
-│   │   │   └── auth.service.ts      # Auth logic
+│   │   │   └── auth.service.ts   # Auth logic
 │   │   ├── types/
-│   │   │   └── index.ts             # TS interfaces
-│   │   ├── app.ts                   # Express setup
-│   │   └── server.ts                # Entry point
+│   │   │   └── index.ts          # TS interfaces
+│   │   ├── app.ts                # Express setup
+│   │   └── server.ts             # Entry point
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── .env.example
@@ -188,14 +190,23 @@ cd ai-learning-assistant
 ```bash
 cd backend
 npm install
-npm start
 ```
-3️⃣ **Cài đặt Frontend (Next.js)**
+3️⃣ **Chạy Backend**
+```bash
+# Với MongoDB thật
+npm run dev
+
+# Không cần MongoDB (Mock Mode)
+MONGODB_URI=mock npm run dev
+```
+4️⃣ **Cài đặt Frontend (Next.js)**
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
+
+**API Documentation:** http://localhost:5000/api-docs
 
 ## 🔮 10. Hướng phát triển tương lai
 - 🤖 Chatbot giải bài theo môn học
