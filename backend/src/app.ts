@@ -3,6 +3,8 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
+import questionRoutes from './routes/question.routes';
+import learningPathRoutes from './routes/learning-path.routes';
 import connectDB from './config/database';
 import { swaggerSpec } from './config/swagger';
 
@@ -35,6 +37,8 @@ app.get('/api-docs.json', (req: Request, res: Response) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/questions', questionRoutes);
+app.use('/api/learning-paths', learningPathRoutes);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
