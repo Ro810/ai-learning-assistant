@@ -59,12 +59,9 @@ const UserSchema = new Schema<IUserDocument>(
         ref: 'Subject',
       },
       level: String,
-      weakTopics: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: 'Subject.topics',
-        },
-      ],
+      // Topic IDs are subdocument _ids inside Subject.topics — no Mongoose ref
+      // (populate must be done manually by querying the parent Subject)
+      weakTopics: [Schema.Types.ObjectId],
     },
   },
   {

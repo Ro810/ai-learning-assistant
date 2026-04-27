@@ -1,7 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { questionGenerator } from '../services/question-generator.service';
 import { Question } from '../models/question.model';
 import mongoose from 'mongoose';
+
+const generateQuestionsSchema = z.object({
+  subjectId: z.string().optional(),
+  topicIds: z.array(z.string()).min(1, 'topicIds must contain at least one topic'),
+  difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  count: z.number().int().min(1).max(50).optional(),
+  questionType: z.enum(['multiple_choice', 'fill_blank', 'essay']).optional(),
+});
 
 export const generateQuestions = async (
   req: Request,
@@ -9,21 +18,23 @@ export const generateQuestions = async (
   next: NextFunction
 ) => {
   try {
-    const { subjectId, topicIds, difficulty, count, questionType } = req.body;
-
-    if (!topicIds || !Array.isArray(topicIds) || topicIds.length === 0) {
+    const parsed = generateQuestionsSchema.safeParse(req.body);
+    if (!parsed.success) {
       return res.status(400).json({
         success: false,
-        message: 'topicIds is required and must be an array',
+        message: 'Validation error',
+        errors: parsed.error.errors,
       });
     }
 
+    const { subjectId, topicIds, difficulty, count, questionType } = parsed.data;
+
     const questions = await questionGenerator.generate({
-      subjectId,
+      subjectId: subjectId ?? '',
       topicIds,
-      difficulty: difficulty || 2,
-      count: count || 5,
-      questionType: questionType || 'multiple_choice',
+      difficulty: difficulty ?? 2,
+      count: count ?? 5,
+      questionType: questionType ?? 'multiple_choice',
     });
 
     res.status(201).json({

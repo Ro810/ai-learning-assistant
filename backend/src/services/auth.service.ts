@@ -5,6 +5,9 @@ import { IUserInput, IAuthPayload, IAuthResponse } from '../types';
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+const signToken = (payload: IAuthPayload): string =>
+  jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+
 // Mock mode: Use in-memory storage when MONGODB_URI contains "mock"
 const USE_MOCK = process.env.MONGODB_URI === 'mock';
 
@@ -51,7 +54,7 @@ export class AuthService {
 
       mockUsers.set(email, mockUser);
 
-      const token = jwt.sign({ userId, email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+      const token = signToken({ userId, email });
       return { token, user: { id: userId, email, name } };
     }
 
@@ -71,11 +74,7 @@ export class AuthService {
       learningGoals: [],
     });
 
-    const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN as any }
-    );
+    const token = signToken({ userId: user._id.toString(), email: user.email });
 
     return {
       token,
@@ -102,7 +101,7 @@ export class AuthService {
         throw new Error('Invalid email or password');
       }
 
-      const token = jwt.sign({ userId: user._id, email }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN as any });
+      const token = signToken({ userId: user._id, email });
       return { token, user: { id: user._id, email, name: user.profile.name } };
     }
 
@@ -118,11 +117,7 @@ export class AuthService {
       throw new Error('Invalid email or password');
     }
 
-    const token = jwt.sign(
-      { userId: user._id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN as any }
-    );
+    const token = signToken({ userId: user._id.toString(), email: user.email });
 
     return {
       token,
@@ -152,15 +147,6 @@ export class AuthService {
       throw new Error('User not found');
     }
     return user;
-  }
-
-  /**
-   * Generate JWT token
-   */
-  private generateToken(payload: IAuthPayload): string {
-    return jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN as any,
-    });
   }
 
   /**

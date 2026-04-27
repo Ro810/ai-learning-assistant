@@ -1,7 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { learningPathGenerator } from '../services/learning-path-generator.service';
 import { LearningPath } from '../models/learning-path.model';
 import mongoose from 'mongoose';
+
+const createLearningPathSchema = z.object({
+  subjectId: z.string().min(1),
+  assessmentId: z.string().min(1),
+  targetDate: z.string().min(1, 'targetDate is required'),
+  targetLevel: z.enum(['basic', 'intermediate', 'advanced']),
+  weeklyStudyHours: z.number().int().min(1).max(168).optional(),
+});
+
+const updateLearningPathSchema = z.object({
+  milestoneId: z.string().optional(),
+  action: z.enum(['complete', 'update_progress']).optional(),
+  completionRate: z.number().min(0).max(100).optional(),
+});
 
 export const createLearningPath = async (
   req: Request,
@@ -10,21 +25,23 @@ export const createLearningPath = async (
 ) => {
   try {
     const userId = (req as any).user?.userId;
-    const { subjectId, assessmentId, targetDate, targetLevel, weeklyStudyHours } = req.body;
-
-    if (!subjectId || !assessmentId || !targetDate || !targetLevel) {
+    const parsed = createLearningPathSchema.safeParse(req.body);
+    if (!parsed.success) {
       return res.status(400).json({
         success: false,
-        message: 'subjectId, assessmentId, targetDate, and targetLevel are required',
+        message: 'Validation error',
+        errors: parsed.error.errors,
       });
     }
+
+    const { subjectId, assessmentId, targetDate, targetLevel, weeklyStudyHours } = parsed.data;
 
     const learningPath = await learningPathGenerator.generate({
       subjectId,
       assessmentId,
       targetDate,
       targetLevel,
-      weeklyStudyHours: weeklyStudyHours || 10,
+      weeklyStudyHours: weeklyStudyHours ?? 10,
     }, userId);
 
     res.status(201).json({
@@ -104,7 +121,15 @@ export const updateLearningPath = async (
   try {
     const userId = (req as any).user?.userId;
     const { id } = req.params;
-    const { milestoneId, action, completionRate } = req.body;
+    const parsed = updateLearningPathSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation error',
+        errors: parsed.error.errors,
+      });
+    }
+    const { milestoneId, action, completionRate } = parsed.data;
 
     const learningPath = await LearningPath.findOne({
       _id: id,

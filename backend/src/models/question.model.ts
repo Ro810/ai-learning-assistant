@@ -23,13 +23,12 @@ const QuestionOptionSchema = new Schema(
 
 const QuestionSchema = new Schema<IQuestionDocument>(
   {
-    topicIds: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Subject.topics',
-        required: [true, 'At least one topic is required'],
-      },
-    ],
+    // Topic IDs are subdocument _ids inside Subject.topics — no Mongoose ref
+    topicIds: {
+      type: [Schema.Types.ObjectId],
+      required: [true, 'At least one topic is required'],
+      validate: [(arr: unknown[]) => arr.length > 0, 'At least one topic is required'],
+    },
     difficulty: {
       type: Number,
       required: [true, 'Difficulty is required'],

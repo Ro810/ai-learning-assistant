@@ -2,7 +2,23 @@ import { aiService } from './ai.service';
 import { IGenerateLearningPathInput, ILearningPathPromptData } from '../types/ai.types';
 import { LearningPath } from '../models/learning-path.model';
 import { Assessment } from '../models/assessment.model';
+import { Subject } from '../models/subject.model';
 import mongoose from 'mongoose';
+
+/**
+ * Build a map from topic subdocument _id (string) to topic name
+ * for a given subject. Returns an empty map if the subject has no topics.
+ */
+const buildTopicNameMap = async (subjectId: string): Promise<Map<string, string>> => {
+  if (!mongoose.Types.ObjectId.isValid(subjectId)) return new Map();
+
+  const subject = await Subject.findById(subjectId).select('topics').lean();
+  if (!subject?.topics) return new Map();
+
+  return new Map<string, string>(
+    subject.topics.map((t: any) => [t._id.toString(), t.name]),
+  );
+};
 
 const generateLearningPathPrompt = (data: ILearningPathPromptData): string => {
   return `
@@ -45,17 +61,26 @@ Format JSON (chỉ trả về JSON, không có text khác):
 
 export class LearningPathGeneratorService {
   async generate(input: IGenerateLearningPathInput, userId: string): Promise<any> {
-    // Get assessment result
     const assessment = await Assessment.findById(input.assessmentId);
+    const topicNameMap = await buildTopicNameMap(input.subjectId);
+
+    // Map topicId → topic name; fall back to id string if not found.
+    // The AI prompt needs human-readable subject matter, not ObjectIds.
+    const labelTopic = (id: mongoose.Types.ObjectId | string): string => {
+      const key = id.toString();
+      return topicNameMap.get(key) ?? key;
+    };
+
+    const skillAnalysis = assessment?.results?.skillAnalysis ?? [];
 
     const promptData: ILearningPathPromptData = {
       assessmentResult: {
-        strengths: assessment?.results?.skillAnalysis
-          ?.filter(s => (s.correct / s.total) > 0.7)
-          .map(s => s.topicId.toString()) || [],
-        weaknesses: assessment?.results?.skillAnalysis
-          ?.filter(s => (s.correct / s.total) < 0.5)
-          .map(s => s.topicId.toString()) || [],
+        strengths: skillAnalysis
+          .filter(s => s.total > 0 && (s.correct / s.total) > 0.7)
+          .map(s => labelTopic(s.topicId)),
+        weaknesses: skillAnalysis
+          .filter(s => s.total > 0 && (s.correct / s.total) < 0.5)
+          .map(s => labelTopic(s.topicId)),
         currentLevel: assessment?.results?.recommendedLevel || 'basic',
       },
       targetLevel: input.targetLevel,

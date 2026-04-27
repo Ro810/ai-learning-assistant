@@ -1,7 +1,30 @@
 import { aiService } from './ai.service';
 import { IGenerateQuestionsInput, IQuestionPromptData } from '../types/ai.types';
 import { Question } from '../models/question.model';
+import { Subject } from '../models/subject.model';
 import mongoose from 'mongoose';
+
+/**
+ * Resolve topic subdocument names from Subject collection.
+ * Falls back to ID string if a topic cannot be found.
+ */
+const resolveTopicNames = async (
+  subjectId: string | undefined,
+  topicIds: string[],
+): Promise<string[]> => {
+  if (!subjectId || !mongoose.Types.ObjectId.isValid(subjectId)) {
+    return topicIds;
+  }
+
+  const subject = await Subject.findById(subjectId).select('topics').lean();
+  if (!subject?.topics) return topicIds;
+
+  const idToName = new Map<string, string>(
+    subject.topics.map((t: any) => [t._id.toString(), t.name]),
+  );
+
+  return topicIds.map((id) => idToName.get(id) ?? id);
+};
 
 const generateQuestionPrompt = (data: IQuestionPromptData): string => {
   const difficultyLabel = data.difficulty === 1 ? 'Dễ (Basic)' : data.difficulty === 2 ? 'Trung bình (Intermediate)' : 'Khó (Advanced)';
@@ -37,14 +60,15 @@ Format JSON (chỉ trả về JSON, không có text khác):
 
 export class QuestionGeneratorService {
   async generate(input: IGenerateQuestionsInput): Promise<any[]> {
-    // Get topic info from database
     const topicIds = input.topicIds.map(id => new mongoose.Types.ObjectId(id));
 
-    // For now, use a default topic string - in production, fetch from Subject model
-    const topicName = `Topic ${input.topicIds.join(', ')}`;
+    // Resolve real topic names from Subject collection so the AI prompt
+    // contains meaningful subject matter instead of opaque ObjectIds.
+    const topicNames = await resolveTopicNames(input.subjectId, input.topicIds);
+    const topicLabel = topicNames.join(', ');
 
     const prompt = generateQuestionPrompt({
-      topic: topicName,
+      topic: topicLabel,
       difficulty: input.difficulty,
       count: input.count,
       questionType: input.questionType,
