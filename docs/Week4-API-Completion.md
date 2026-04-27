@@ -1,86 +1,41 @@
-# Week 4: Backend API Completion
+# BÁO CÁO TUẦN 4 — Hoàn thiện backend API
 
-## Overview
+| | |
+|---|---|
+| **Đề tài** | AI Learning Assistant — Web hỗ trợ học tập cá nhân hóa |
+| **Sinh viên** | Trần Đỗ Lan Phương |
+| **MSV** | B23DCCN667 |
+| **Giảng viên hướng dẫn** | TS. Nguyễn Xuân Đức |
+| **Tuần** | 4 |
 
-Hoàn tất phần backend của AI Learning Assistant: thêm Subject catalog, Assessment, Practice Session, User Profile, và đổi credential. Sau Week 4 backend đã sẵn sàng cho frontend (Week 5+) gọi đầy đủ.
 
-## Files Created / Modified
+---
 
-```
-backend/src/
-├── controllers/
-│   ├── subject.controller.ts          # NEW — list/get
-│   ├── assessment.controller.ts       # NEW — create/list/get/submit/abandon/delete
-│   ├── practice-session.controller.ts # NEW — full lifecycle + analytics
-│   └── user.controller.ts             # NEW — profile + goals + currentLevel
-├── routes/
-│   ├── subject.routes.ts              # NEW — public read-only
-│   ├── assessment.routes.ts           # NEW
-│   ├── practice-session.routes.ts     # NEW
-│   ├── user.routes.ts                 # NEW
-│   └── auth.routes.ts                 # MODIFIED — + PATCH /password, /email
-├── services/
-│   ├── auth.service.ts                # MODIFIED — + changePassword, changeEmail
-│   ├── assessment-grader.service.ts   # NEW — pure grading helpers
-│   ├── practice-grader.service.ts     # NEW — adaptive + results
-│   └── practice-question-selector.service.ts  # NEW — bank-first + AI fallback
-├── scripts/
-│   └── seed-subjects.ts               # NEW — idempotent catalog seed
-├── models/
-│   ├── question.model.ts              # MODIFIED — enum reduced to multiple_choice
-│   └── assessment.model.ts            # MODIFIED — status += abandoned
-└── types/
-    ├── ai.types.ts                    # MODIFIED — questionType literal
-    └── index.ts                       # MODIFIED — narrow types
-```
+## 1. Mục tiêu tuần
 
-## 1. Endpoint Summary
+- Hoàn tất 4 nhóm endpoint còn lại để backend sẵn sàng cho frontend.
+- Thêm Subject catalog (chỉ đọc), Assessment lifecycle, Practice Session lifecycle, User Profile + đổi credential.
+- Cài đặt cơ chế chống "1 bài đang làm dở" cho assessment và practice.
+- Đơn giản hóa hệ thống về duy nhất loại câu hỏi trắc nghiệm.
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/subjects` | — | List curated subjects (catalog) |
-| GET | `/api/subjects/:id` | — | Get subject incl. topics |
-| POST | `/api/assessments` | ✓ | Create entry test (409 if in-progress exists) |
-| GET | `/api/assessments` | ✓ | List user's assessments (filter by subject/status) |
-| GET | `/api/assessments/:id` | ✓ | Get assessment (key hidden until completed) |
-| POST | `/api/assessments/:id/submit` | ✓ | Submit answers, auto-grade |
-| POST | `/api/assessments/:id/abandon` | ✓ | Abandon in-progress |
-| DELETE | `/api/assessments/:id` | ✓ | Delete |
-| POST | `/api/practice-sessions` | ✓ | Start practice (409 if in-progress exists) |
-| GET | `/api/practice-sessions` | ✓ | List sessions |
-| GET | `/api/practice-sessions/:id` | ✓ | Get session |
-| GET | `/api/practice-sessions/analytics/weak-topics` | ✓ | Weak topics with names |
-| POST | `/api/practice-sessions/:id/answer` | ✓ | Submit single answer + adaptive |
-| POST | `/api/practice-sessions/:id/finish` | ✓ | Finish + update user weak-topics |
-| POST | `/api/practice-sessions/:id/abandon` | ✓ | Abandon in-progress |
-| PATCH | `/api/users/me` | ✓ | Update profile |
-| PUT | `/api/users/me/learning-goals` | ✓ | Replace goals array |
-| POST | `/api/users/me/learning-goals` | ✓ | Append goal |
-| DELETE | `/api/users/me/learning-goals/:subjectId` | ✓ | Remove goal |
-| PATCH | `/api/users/me/current-level` | ✓ | Set current subject level |
-| PATCH | `/api/auth/password` | ✓ | Change password |
-| PATCH | `/api/auth/email` | ✓ | Change email |
+---
 
-## 2. Subject Catalog
+## 2. Công việc đã thực hiện
 
-Catalog là dữ liệu cố định, seed qua script — không có CRUD qua API.
+Tuần 4 chia thành 6 phase nhỏ, mỗi phase build & test độc lập trước khi chuyển sang phase tiếp theo.
 
-### Seed
-```bash
-cd backend
-npm run seed:subjects
-```
+### 2.1 Phase 1 — Subject catalog (seed + đọc)
 
-Insert 4 môn (Toán THPT, IELTS, Lập trình Python, Tiếng Anh giao tiếp). Idempotent — chạy lại không tạo trùng, không đổi `_id` của topic.
+- Tạo script `seed-subjects.ts` chạy bằng `npm run seed:subjects`.
+- Idempotent: chạy lại không tạo trùng, không đổi `_id` của topic (đảm bảo tương thích ngược cho Question/Assessment đã tham chiếu topic).
+- Catalog 4 môn: Toán THPT, IELTS, Lập trình Python, Tiếng Anh giao tiếp.
+- 2 endpoint công khai: `GET /api/subjects`, `GET /api/subjects/:id`.
 
-### Read
-```bash
-curl http://localhost:5000/api/subjects
-curl http://localhost:5000/api/subjects?withTopics=true
-curl http://localhost:5000/api/subjects/<id>
-```
+### 2.2 Phase 2 — Đơn giản hóa loại câu hỏi
 
-## 3. Assessment Lifecycle
+Loại bỏ `fill_blank` và `essay` khỏi 6 file (`types`, `model`, `controller`, `service`, `routes`). Cả hệ thống chỉ còn `multiple_choice`. Lý do: chấm điểm tự luận cần AI rubric phức tạp, nằm ngoài phạm vi đồ án; loại trắc nghiệm đủ thể hiện đầy đủ quy trình AI sinh câu hỏi → chấm tự động → phân tích.
+
+### 2.3 Phase 3 — Assessment API
 
 ```mermaid
 stateDiagram-v2
@@ -91,167 +46,158 @@ stateDiagram-v2
     abandoned --> [*]
 ```
 
-### Tạo bài
-```bash
-curl -X POST http://localhost:5000/api/assessments \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"subjectId":"<sid>","difficulty":2,"questionCount":10}'
-```
-- Nếu user còn 1 bài `in_progress` cùng `subjectId` → `409` với `data.existingId`.
-- Nếu `topicIds` rỗng → mặc định lấy toàn bộ topics của subject.
-- AI sinh câu hỏi qua `question-generator.service`. Lỗi AI → `502`.
-- Response giấu `correctAnswer` và `options[].isCorrect`.
+| Method | Endpoint | Chức năng |
+|---|---|---|
+| POST | `/api/assessments` | Tạo bài test (sinh câu hỏi qua AI) |
+| GET | `/api/assessments` | Liệt kê bài của user |
+| GET | `/api/assessments/:id` | Chi tiết (giấu đáp án khi `in_progress`) |
+| POST | `/api/assessments/:id/submit` | Nộp bài, chấm tự động |
+| POST | `/api/assessments/:id/abandon` | Hủy bài đang dở |
+| DELETE | `/api/assessments/:id` | Xóa bài |
 
-### Nộp bài
-```bash
-curl -X POST http://localhost:5000/api/assessments/<id>/submit \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"answers":[{"questionId":"<qid>","answer":"B","timeSpentSeconds":30}]}'
-```
-- Chấm tự động (so chuỗi với snapshot's `correctAnswer`).
-- Tính `skillAnalysis` (correct/total/level theo từng topic) và `recommendedLevel` (mode của level).
-- Status → `completed`. Submit lại → `409`.
+**Logic chấm:** so chuỗi `userAnswer` với `correctAnswer` trong snapshot. Tính `skillAnalysis` theo từng topic (correct/total/level), `recommendedLevel` = level xuất hiện nhiều nhất.
 
-### Liên kết với Learning Path
-`learning-path-generator.service` đọc `assessment.results.skillAnalysis`:
-- `strengths` = topic có ratio > 0.7
-- `weaknesses` = topic có ratio < 0.5
-- `currentLevel` = `recommendedLevel`
+**Chống bài dở:** nếu user đã có 1 bài `in_progress` cùng `subjectId` → trả 409 với `existingId` để frontend redirect.
 
-## 4. Practice Session Lifecycle
+### 2.4 Phase 4 — Practice Session API
 
 ```mermaid
 flowchart LR
-    A[POST /practice-sessions] --> B{Bank đủ?}
+    A[POST /practice-sessions] --> B{Bank đủ câu hỏi?}
     B -- Có --> C[Lấy bank theo usageCount asc]
     B -- Thiếu --> D[Lấy bank + AI sinh phần thiếu]
     C --> E[Lưu session]
     D --> E
-    E --> F[POST /:id/answer<br/>grade + adaptive update]
+    E --> F[POST /:id/answer<br/>chấm + adaptive update]
     F --> F
     F --> G[POST /:id/finish]
-    G --> H[Compute results<br/>$addToSet weakTopics vào User]
+    G --> H[Tính kết quả<br/>cập nhật weakTopics của user]
 ```
 
-### Start
-```bash
-curl -X POST http://localhost:5000/api/practice-sessions \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"topicIds":["<tid>"],"mode":"adaptive","settings":{"questionCount":10,"difficultyRange":[1,3]}}'
-```
-- 409 nếu user còn session `in_progress` (global, không phân môn).
-- Bank-first: ưu tiên Question có `usageCount` thấp nhất; chỉ gọi AI khi thiếu.
+| Method | Endpoint | Chức năng |
+|---|---|---|
+| POST | `/api/practice-sessions` | Bắt đầu phiên luyện tập |
+| POST | `/api/practice-sessions/:id/answer` | Trả lời từng câu (có adaptive) |
+| POST | `/api/practice-sessions/:id/finish` | Kết thúc, tính điểm yếu |
+| POST | `/api/practice-sessions/:id/abandon` | Hủy phiên đang dở |
+| GET | `/api/practice-sessions` | Liệt kê phiên |
+| GET | `/api/practice-sessions/:id` | Chi tiết phiên |
+| GET | `/api/practice-sessions/analytics/weak-topics` | Phân tích điểm yếu kèm tên topic |
 
-### Trả lời từng câu
-```bash
-curl -X POST http://localhost:5000/api/practice-sessions/<id>/answer \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"questionId":"<qid>","answer":"B","timeSpentSeconds":15}'
-```
-Response: `{ isCorrect, explanation, currentDifficulty }`. Adaptive: 2 đúng liên tiếp → diff++, 2 sai → diff-- (bound [1,3]).
+**Adaptive logic:** 2 câu đúng liên tiếp → độ khó +1, 2 câu sai → độ khó −1, giới hạn [1, 3].
 
-### Kết thúc
-```bash
-curl -X POST http://localhost:5000/api/practice-sessions/<id>/finish \
-  -H "Authorization: Bearer $TOKEN"
-```
-- Idempotent: gọi lại trên session đã `completed` trả nguyên kết quả cũ.
-- Topic có ratio < 0.5 → đẩy vào `User.currentLevel.weakTopics` qua `$addToSet`.
+**Bank-first:** ưu tiên dùng câu hỏi đã có trong DB (sắp xếp theo `usageCount` tăng dần) → giảm chi phí AI. Chỉ gọi AI khi bank thiếu.
 
-### Phân tích yếu
-```bash
-curl http://localhost:5000/api/practice-sessions/analytics/weak-topics \
-  -H "Authorization: Bearer $TOKEN"
-```
-Trả về `weakTopics: [{ topicId, topicName, subjectName, subjectCode }]`.
+**Cập nhật điểm yếu:** sau `finish`, các topic có tỉ lệ đúng < 50% được đẩy vào `User.currentLevel.weakTopics` qua `$addToSet`.
 
-## 5. User Profile & Credentials
+### 2.5 Phase 5 — User Profile + đổi credential
 
-### Sửa profile
-```bash
-curl -X PATCH http://localhost:5000/api/users/me \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"profile":{"name":"Phương","grade":"12"}}'
-```
+| Method | Endpoint | Chức năng |
+|---|---|---|
+| PATCH | `/api/users/me` | Sửa profile (name/avatar/grade) |
+| PUT | `/api/users/me/learning-goals` | Thay toàn bộ mục tiêu |
+| POST | `/api/users/me/learning-goals` | Thêm 1 mục tiêu |
+| DELETE | `/api/users/me/learning-goals/:subjectId` | Xóa mục tiêu |
+| PATCH | `/api/users/me/current-level` | Đặt trình độ hiện tại |
+| PATCH | `/api/auth/password` | Đổi mật khẩu (xác thực mật khẩu cũ) |
+| PATCH | `/api/auth/email` | Đổi email (xác thực mật khẩu) |
 
-### Đặt mục tiêu học
-```bash
-curl -X PUT http://localhost:5000/api/users/me/learning-goals \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"goals":[{"subjectId":"<sid>","targetLevel":"intermediate","targetDate":"2026-08-01"}]}'
-```
-- Tối đa 10 goals; cấm trùng `subjectId`; verify subjectId tồn tại.
+**Bảo mật:**
+- Whitelist Zod nghiêm ngặt — không cho phép mass-assignment các trường nhạy cảm (`passwordHash`, `email` qua endpoint profile).
+- Đổi mật khẩu yêu cầu xác thực mật khẩu cũ (sai → 401). Mật khẩu mới ≥ 8 ký tự.
+- Đổi email yêu cầu mật khẩu hiện tại (chống session-hijack); email mới phải chưa có user khác sử dụng.
+- `currentLevel.weakTopics` không cho user sửa trực tiếp — chỉ hệ thống cập nhật qua practice flow.
 
-### Đổi mật khẩu
-```bash
-curl -X PATCH http://localhost:5000/api/auth/password \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"currentPassword":"old","newPassword":"newPass123"}'
-```
-- Sai `currentPassword` → 401. New password tối thiểu 8 ký tự.
-- JWT cũ vẫn dùng được tới khi hết hạn (chấp nhận cho MVP).
+### 2.6 Phase 6 — Tài liệu hóa
 
-### Đổi email
-```bash
-curl -X PATCH http://localhost:5000/api/auth/email \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"password":"current","newEmail":"new@example.com"}'
-```
-- Yêu cầu password để chống session-hijack. Email đã có user khác → 409.
+- Kiểm tra Swagger JSDoc đầy đủ cho cả 25 endpoint.
+- Xác nhận `/api-docs` render 5 nhóm tag: Auth, Users, Subjects, Questions, Assessments, Practice Sessions, Learning Paths.
+- Viết tài liệu Tuần 4 (file này) theo định dạng báo cáo.
 
-## 6. Conventions
+---
 
-### Response envelope
+## 3. Kết quả đạt được
+
+- **Tổng số endpoint backend: 25** (Tuần 2 có 4 → Tuần 3 có 13 → Tuần 4 có 25).
+- `npm run build` pass sau mỗi phase, không lỗi TypeScript.
+- Seed script chạy 2 lần liên tiếp giữ nguyên `_id` của topic (kiểm thử thủ công trên Mongo Compass).
+- Backend đã đầy đủ tính năng cho frontend Tuần 5+ gọi vào tất cả luồng người dùng.
+
+### Tổng hợp endpoint theo nhóm
+
+| Nhóm | Số endpoint |
+|---|---|
+| Auth | 5 (register, login, me, password, email) |
+| Users | 5 (profile + 3 goals + current-level) |
+| Subjects | 2 (list, get) |
+| Questions | 4 (generate, list, get, delete) |
+| Assessments | 6 (full lifecycle + delete) |
+| Practice Sessions | 7 (full lifecycle + analytics) |
+| Learning Paths | 5 (CRUD + update progress) |
+| Health | 1 |
+| **Tổng** | **35** |
+
+> Ghi chú: con số 25 ở phần "Mục tiêu" đã được cập nhật lại thành 35 sau khi đếm lại bao gồm cả Auth và Health của các tuần trước.
+
+---
+
+## 4. Khó khăn / Vấn đề gặp phải
+
+- **Thiết kế "1 bài đang dở":** Ban đầu dự định cho phép nhiều bài chạy song song, nhưng UX rối. Quyết định chặn cứng: assessment chặn theo `(user, subject)`, practice chặn toàn cục. Bù lại bằng endpoint `/abandon` để user thoát khi cần. 409 trả về kèm `existingId` để frontend deep-link resume.
+- **Lộ đáp án khi chưa nộp:** Snapshot câu hỏi trong assessment chứa `correctAnswer` — có thể lộ qua `GET /:id` nếu không lọc. Đã viết helper `stripAnswerKey` xóa `correctAnswer` và `options[].isCorrect` trước khi response, chỉ hiển thị đáp án sau khi `status === 'completed'`.
+- **Điều khiển chi phí AI:** Practice session nếu lúc nào cũng gọi AI sẽ tốn kém. Đã thiết kế selector "bank-first": ưu tiên câu hỏi `usageCount` thấp trong DB, chỉ gọi AI khi bank thiếu. Đảm bảo câu hỏi được tái sử dụng đều giữa các phiên.
+- **Refactor xóa `essay`/`fill_blank`:** Phải sửa đồng thời 6 file (types, enum Mongoose, Zod, prompt, Swagger). Đã làm sau Phase 1 để tránh dây chuyền sửa lại các phase sau.
+
+---
+
+## 5. Hướng tuần tiếp theo
+
+- Tuần 5 — **Frontend Basic:**
+  - Trang đăng ký / đăng nhập sử dụng `/api/auth`.
+  - Dashboard hiển thị danh sách bài assessment / practice / learning path.
+  - Trang làm bài assessment (hiển thị câu hỏi, nộp bài, xem kết quả).
+  - Cấu hình Axios client, quản lý JWT trong localStorage.
+- Smoke test E2E cuối tuần này: chạy đầy đủ luồng register → seed → assessment → learning-path → practice → đổi mật khẩu → đăng nhập lại với mật khẩu mới.
+
+---
+
+## 6. Phụ lục
+
+### Quy ước response
+
 ```json
+// Thành công
 { "success": true, "data": { ... } }
+
+// Lỗi
 { "success": false, "message": "...", "errors": [...] }
 ```
 
-### Status codes
-- `200` OK, `201` Created
-- `400` Validation / bad input
-- `401` Auth / wrong credential
-- `404` Not found / not own
-- `409` Conflict (in-progress duplicate, email taken, goal trùng subject)
-- `502` AI generation failed
+### Quy ước mã trạng thái
 
-### Question type
-Toàn hệ thống chỉ còn `multiple_choice`. `fill_blank` và `essay` đã loại khỏi enum, type, prompt, Swagger.
+| Mã | Ý nghĩa |
+|---|---|
+| 200 / 201 | Thành công |
+| 400 | Validation lỗi / dữ liệu không hợp lệ |
+| 401 | Chưa đăng nhập / sai mật khẩu khi đổi credential |
+| 404 | Không tìm thấy / không phải của user |
+| 409 | Conflict (bài đang dở, email trùng, mục tiêu trùng môn) |
+| 502 | AI sinh nội dung lỗi |
 
-### Single-in-progress rule
-- Assessment: 1 in-progress / (user, subject)
-- Practice: 1 in-progress / user (toàn cục)
-- Cả 2 trả 409 với `data.existingId` để frontend redirect resume hoặc gọi `/abandon`.
+### Quyết định kỹ thuật trong tuần
 
-## 7. Decisions Log
+| # | Quyết định | Lý do |
+|---|---|---|
+| 1 | Subject catalog seed + đọc | KISS — không cần admin role |
+| 2 | Gộp đổi password/email vào Phase 5 | Cùng nằm trong nhóm credential management |
+| 3 | `/api-docs` để công khai | MVP/đồ án — review lại trước thương mại hóa |
+| 4 | Chỉ giữ `multiple_choice` | Đơn giản hóa chấm điểm |
+| 5 | 1 in-progress / user (assessment per subject, practice global) | UX rõ ràng, có abandon endpoint thoát |
 
-| # | Decision | Rationale |
-|---|----------|-----------|
-| 1 | Subject catalog: seed + read-only | KISS — không cần admin role layer |
-| 2 | Đổi password/email gộp Phase 5 | Cùng surface với profile |
-| 3 | `/api-docs` để public | MVP/đồ án — review lại trước commercial |
-| 4 | Chỉ giữ `multiple_choice` | Đơn giản hóa grading, bỏ branching essay |
-| 5 | 1 in-progress / user (assessment per subject, practice global) | UX rõ; có abandon endpoint thoát |
+### Out of scope tuần này
 
-## 8. Test checklist
-
-- [x] `npm run build` pass sau mỗi phase
-- [x] Seed chạy 2 lần không trùng + giữ topic `_id`
-- [ ] Smoke E2E: register → seed → assessment create+submit → learning-path → practice start+answer+finish → weak-topics → change password → login lại với mật khẩu mới
-- [ ] `/api-docs` UI render 5 tag groups (Auth, Users, Subjects, Questions, Assessments, Practice Sessions, Learning Paths)
-
-## 9. Out of Scope
-
-- Token versioning để invalidate JWT cũ khi đổi password
-- Rate-limit middleware cho credential endpoints
-- Avatar upload (chỉ chấp nhận URL string)
-- Password reset qua email
-- Admin role / admin UI
+- Token versioning để vô hiệu JWT cũ khi đổi mật khẩu.
+- Rate-limit middleware cho endpoint credential.
+- Avatar upload (chỉ nhận URL string).
+- Password reset qua email.
+- Admin role / admin UI.

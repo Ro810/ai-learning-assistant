@@ -1,188 +1,118 @@
-# Week 2: Backend Setup
+# BÁO CÁO TUẦN 2 — Khởi tạo backend & xác thực người dùng
 
-## Overview
+| | |
+|---|---|
+| **Đề tài** | AI Learning Assistant — Web hỗ trợ học tập cá nhân hóa |
+| **Sinh viên** | Trần Đỗ Lan Phương |
+| **MSV** | B23DCCN667 |
+| **Giảng viên hướng dẫn** | TS. Nguyễn Xuân Đức |
+| **Tuần** | 2 |
 
-Express.js + MongoDB backend với JWT authentication, Swagger documentation, và Mock Mode support.
+---
 
-## Quick Start
+## 1. Mục tiêu tuần
 
-```bash
-cd backend
-npm install
-# Chạy với MongoDB thật
-npm run dev
-# Hoặc chạy không cần MongoDB (mock mode)
-MONGODB_URI=mock npm run dev
-```
+- Khởi tạo dự án backend với Express + TypeScript.
+- Kết nối MongoDB qua Mongoose, thiết kế 6 schema chính.
+- Cài đặt xác thực JWT (đăng ký / đăng nhập / lấy thông tin người dùng).
+- Bổ sung Swagger UI để tài liệu hóa API.
+- Thêm chế độ Mock Mode cho phép phát triển không cần MongoDB.
 
-## Project Structure
+---
+
+## 2. Công việc đã thực hiện
+
+### 2.1 Cấu trúc dự án
 
 ```
 backend/
 ├── src/
-│   ├── app.ts              # Express app setup
+│   ├── app.ts              # Express app
 │   ├── server.ts           # Entry point
-│   ├── config/
-│   │   ├── database.ts     # MongoDB connection
-│   │   ├── mongoose-setup.ts  # Env vars + mongoose config
-│   │   └── swagger.ts     # Swagger config
-│   ├── middleware/
-│   │   └── auth.middleware.ts  # JWT verification
-│   ├── models/
-│   │   ├── user.model.ts       # User schema
-│   │   ├── subject.model.ts    # Subject schema
-│   │   ├── question.model.ts   # Question schema
-│   │   ├── assessment.model.ts # Assessment schema
-│   │   ├── learning-path.model.ts
-│   │   └── practice-session.model.ts
-│   ├── routes/
-│   │   └── auth.routes.ts  # Auth endpoints
-│   ├── services/
-│   │   └── auth.service.ts    # Auth logic
-│   └── types/
-│       └── index.ts       # TypeScript interfaces
+│   ├── config/             # database, mongoose, swagger
+│   ├── middleware/         # JWT auth middleware
+│   ├── models/             # 6 Mongoose schemas
+│   ├── routes/             # auth.routes.ts
+│   ├── services/           # auth.service.ts
+│   └── types/              # TS interfaces
 ├── package.json
-├── tsconfig.json
 └── .env.example
 ```
 
-## Environment Variables
+### 2.2 Mongoose Schemas
 
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/ai-learning
-# Hoặc dùng mock mode: MONGODB_URI=mock
-JWT_SECRET=your-secret-key
-JWT_EXPIRES_IN=7d
-NODE_ENV=development
-```
+Cài đặt 6 schema theo thiết kế từ Tuần 1:
+`user.model.ts`, `subject.model.ts`, `question.model.ts`, `assessment.model.ts`, `learning-path.model.ts`, `practice-session.model.ts`.
 
-## API Endpoints
-
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| GET | `/api/health` | Health check | No |
-| POST | `/api/auth/register` | Register new user | No |
-| POST | `/api/auth/login` | Login user | No |
-| GET | `/api/auth/me` | Get current user | Yes |
-
-### Authentication
-
-All protected routes require Bearer token:
-```
-Authorization: Bearer <token>
-```
-
-### Request/Response Examples
-
-**Register**
-```bash
-POST /api/auth/register
+User schema rút gọn:
+```typescript
 {
-  "email": "user@example.com",
-  "password": "password123",
-  "name": "Test User",
-  "grade": "10"
+  email: string (unique),
+  passwordHash: string (bcrypt),
+  profile: { name, avatarUrl?, grade? },
+  learningGoals: [{ subjectId, targetLevel, targetDate }],
+  currentLevel: { subjectId, level, weakTopics: ObjectId[] }
 }
 ```
 
-**Response (201)**
-```json
-{
-  "success": true,
-  "data": {
-    "token": "eyJhbGci...",
-    "user": { "id": "...", "email": "...", "name": "..." }
-  }
-}
-```
+### 2.3 JWT Authentication
 
-**Login**
-```bash
-POST /api/auth/login
-{
-  "email": "user@example.com",
-  "password": "password123"
-}
-```
+| Method | Endpoint | Auth | Mô tả |
+|---|---|---|---|
+| POST | `/api/auth/register` | — | Đăng ký tài khoản mới |
+| POST | `/api/auth/login` | — | Đăng nhập, trả về JWT |
+| GET | `/api/auth/me` | ✓ | Lấy thông tin người dùng hiện tại |
 
-**Get Current User** (protected)
-```bash
-GET /api/auth/me
-Authorization: Bearer <token>
-```
+- Mật khẩu băm bằng bcrypt (cost factor 12).
+- JWT ký với secret + thời hạn 7 ngày (`JWT_EXPIRES_IN=7d`).
+- Middleware `authMiddleware` đọc header `Authorization: Bearer <token>` và gắn `req.user`.
 
-## Features
+### 2.4 Validation
+Dùng **Zod** để kiểm tra body request: email format, password ≥ 6 ký tự, name ≥ 2 ký tự. Trả về 400 với danh sách lỗi cụ thể nếu sai.
 
-### Mock Mode
-Chạy backend không cần MongoDB:
+### 2.5 Swagger Documentation
+- Tích hợp `swagger-jsdoc` + `swagger-ui-express`.
+- Truy cập: `http://localhost:5000/api-docs`.
+- JSDoc gắn trực tiếp trên route file → tự động cập nhật khi thêm endpoint.
+
+### 2.6 Mock Mode
+Tính năng phụ giúp phát triển không cần MongoDB:
 ```bash
 MONGODB_URI=mock npm run dev
 ```
-Dữ liệu được lưu trong memory, restart server sẽ mất.
-
-### Swagger Documentation
-Truy cập: `http://localhost:5000/api-docs`
-
-### Request Logging
-Trong development mode, mỗi request được log ra console.
-
-### Error Handling
-- 404 cho routes không tồn tại
-- 500 cho internal errors
-- Validation errors với Zod
-
-## User Model Schema
-
-```typescript
-{
-  email: string (unique, required)
-  passwordHash: string (required, bcrypt)
-  profile: {
-    name: string (required)
-    avatarUrl?: string
-    grade?: string
-  }
-  learningGoals?: [{
-    subjectId: ObjectId
-    targetLevel: 'basic' | 'intermediate' | 'advanced'
-    targetDate: Date
-  }]
-  currentLevel?: {
-    subjectId: ObjectId
-    level: string
-    weakTopics: ObjectId[]
-  }
-  createdAt: Date
-  updatedAt: Date
-}
-```
-
-## Available Scripts
-
-```bash
-npm run dev    # Development (auto-reload)
-npm run build  # Build to dist/
-npm start      # Production
-npm run lint   # ESLint
-```
-
-## Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| express | Web framework |
-| mongoose | MongoDB ODM |
-| jsonwebtoken | JWT auth |
-| bcryptjs | Password hashing |
-| zod | Validation |
-| swagger-ui-express | API docs |
-| cors | Cross-origin |
+- Lưu user trong `Map<email, User>` (in-memory).
+- Hữu ích cho demo offline hoặc CI ban đầu.
 
 ---
 
-**Ngày:** 08/03/2026
+## 3. Kết quả đạt được
 
-**Sinh viên:** Trần Đỗ Lan Phương
+- Backend chạy được ở cổng 5000 với 4 endpoint hoạt động (3 auth + 1 health check).
+- Đăng ký → đăng nhập → lấy `me` thành công cả trên MongoDB thật và mock mode.
+- Swagger UI render đầy đủ schema request/response.
+- Code base có TypeScript strict, ESLint, build script (`npm run build`).
 
-**MSV:** B23DCCN667
+### Test request mẫu
+
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123","name":"Test User"}'
+```
+Response 201 trả về `{ token, user: { id, email, name } }`.
+
+---
+
+## 4. Khó khăn / Vấn đề gặp phải
+
+- **Mongoose buffering:** Khi `MONGODB_URI=mock`, mongoose mặc định buffer commands chờ connect → request treo. Đã xử lý bằng `mongoose.set('bufferCommands', false)` trong `mongoose-setup.ts` cho mock mode.
+- **Thứ tự load env vars:** `dotenv.config()` phải chạy **trước** mọi import liên quan tới mongoose, nếu không `MONGODB_URI` sẽ undefined. Đã tách thành file `mongoose-setup.ts` được import đầu tiên trong `app.ts`.
+
+---
+
+## 5. Hướng tuần tiếp theo
+
+- Tích hợp Claude API qua interface `IAIProvider`.
+- Cài đặt 2 service AI: sinh câu hỏi trắc nghiệm và sinh lộ trình học.
+- Thêm endpoint `/api/questions/generate` và `/api/learning-paths`.
+- Viết prompt template tiếng Việt cho mỗi service.
