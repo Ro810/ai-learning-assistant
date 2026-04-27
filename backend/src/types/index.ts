@@ -76,7 +76,7 @@ export interface IQuestion {
   _id: Types.ObjectId;
   topicIds: Types.ObjectId[];
   difficulty: 1 | 2 | 3;
-  type: 'multiple_choice' | 'fill_blank' | 'essay';
+  type: 'multiple_choice';
   content: {
     questionText: string;
     options?: IQuestionOption[];
@@ -105,7 +105,7 @@ export interface IAssessment {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
   subjectId: Types.ObjectId;
-  status: 'in_progress' | 'completed';
+  status: 'in_progress' | 'completed' | 'abandoned';
   questions: IAssessmentQuestion[];
   results?: {
     score: number;

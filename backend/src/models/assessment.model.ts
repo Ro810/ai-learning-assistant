@@ -66,7 +66,7 @@ const AssessmentSchema = new Schema<IAssessmentDocument>(
     },
     status: {
       type: String,
-      enum: ['in_progress', 'completed'],
+      enum: ['in_progress', 'completed', 'abandoned'],
       default: 'in_progress',
     },
     questions: [AssessmentQuestionSchema],

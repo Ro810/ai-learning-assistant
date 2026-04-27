@@ -5,6 +5,10 @@ import swaggerUi from 'swagger-ui-express';
 import authRoutes from './routes/auth.routes';
 import questionRoutes from './routes/question.routes';
 import learningPathRoutes from './routes/learning-path.routes';
+import subjectRoutes from './routes/subject.routes';
+import assessmentRoutes from './routes/assessment.routes';
+import practiceSessionRoutes from './routes/practice-session.routes';
+import userRoutes from './routes/user.routes';
 import connectDB from './config/database';
 import { swaggerSpec } from './config/swagger';
 
@@ -37,7 +41,11 @@ app.get('/api-docs.json', (req: Request, res: Response) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/subjects', subjectRoutes);
 app.use('/api/questions', questionRoutes);
+app.use('/api/assessments', assessmentRoutes);
+app.use('/api/practice-sessions', practiceSessionRoutes);
 app.use('/api/learning-paths', learningPathRoutes);
 
 // Health check

@@ -155,6 +155,65 @@ export class AuthService {
   verifyToken(token: string): IAuthPayload {
     return jwt.verify(token, JWT_SECRET) as IAuthPayload;
   }
+
+  /**
+   * Change password — verifies the current password before hashing the new one.
+   * Throws specific Error messages so the route layer can map to 401 vs 500.
+   */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    if (USE_MOCK) {
+      throw new Error('Password change is not supported in mock mode');
+    }
+    const { User, hashPassword } = await import('../models/user.model');
+    const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
+
+    const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!ok) throw new Error('Invalid current password');
+
+    user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+  }
+
+  /**
+   * Change email — verifies the password and ensures the new email is free.
+   * Returns the updated user (no passwordHash).
+   */
+  async changeEmail(
+    userId: string,
+    password: string,
+    newEmail: string,
+  ): Promise<any> {
+    if (USE_MOCK) {
+      throw new Error('Email change is not supported in mock mode');
+    }
+    const normalized = newEmail.toLowerCase().trim();
+
+    const { User } = await import('../models/user.model');
+    const user = await User.findById(userId);
+    if (!user) throw new Error('User not found');
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) throw new Error('Invalid password');
+
+    if (user.email === normalized) {
+      throw new Error('New email is the same as current email');
+    }
+
+    const taken = await User.findOne({ email: normalized }).select('_id');
+    if (taken) throw new Error('Email already in use');
+
+    user.email = normalized;
+    await user.save();
+
+    const result = user.toObject();
+    delete (result as any).passwordHash;
+    return result;
+  }
 }
 
 export const authService = new AuthService();

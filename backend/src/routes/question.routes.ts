@@ -44,7 +44,7 @@ router.use(authMiddleware);
  *                 default: 5
  *               questionType:
  *                 type: string
- *                 enum: [multiple_choice, fill_blank, essay]
+ *                 enum: [multiple_choice]
  *                 default: multiple_choice
  *     responses:
  *       201:

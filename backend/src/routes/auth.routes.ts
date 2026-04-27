@@ -18,6 +18,16 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+});
+
+const changeEmailSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+  newEmail: z.string().email('Invalid email format'),
+});
+
 /**
  * @swagger
  * /api/auth/register:
@@ -173,6 +183,101 @@ router.get('/me', authMiddleware, async (req: Request, res: Response) => {
       success: false,
       message,
     });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/password:
+ *   patch:
+ *     summary: Change current user's password
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [currentPassword, newPassword]
+ *             properties:
+ *               currentPassword: { type: string }
+ *               newPassword: { type: string, minLength: 8 }
+ *     responses:
+ *       200: { description: Password changed }
+ *       400: { description: Validation error }
+ *       401: { description: Invalid current password }
+ */
+router.patch('/password', authMiddleware, async (req: Request, res: Response) => {
+  const validation = changePasswordSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      errors: validation.error.errors,
+    });
+  }
+  try {
+    await authService.changePassword(
+      req.user!.userId,
+      validation.data.currentPassword,
+      validation.data.newPassword,
+    );
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Password change failed';
+    const status = message === 'Invalid current password' ? 401 : 400;
+    res.status(status).json({ success: false, message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/email:
+ *   patch:
+ *     summary: Change current user's email (requires password proof)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password, newEmail]
+ *             properties:
+ *               password: { type: string }
+ *               newEmail: { type: string, format: email }
+ *     responses:
+ *       200: { description: Email changed }
+ *       400: { description: Validation error }
+ *       401: { description: Invalid password }
+ *       409: { description: Email already in use }
+ */
+router.patch('/email', authMiddleware, async (req: Request, res: Response) => {
+  const validation = changeEmailSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      errors: validation.error.errors,
+    });
+  }
+  try {
+    const user = await authService.changeEmail(
+      req.user!.userId,
+      validation.data.password,
+      validation.data.newEmail,
+    );
+    res.json({ success: true, data: { user } });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Email change failed';
+    let status = 400;
+    if (message === 'Invalid password') status = 401;
+    else if (message === 'Email already in use') status = 409;
+    res.status(status).json({ success: false, message });
   }
 });
 

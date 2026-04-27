@@ -28,15 +28,14 @@ const resolveTopicNames = async (
 
 const generateQuestionPrompt = (data: IQuestionPromptData): string => {
   const difficultyLabel = data.difficulty === 1 ? 'Dễ (Basic)' : data.difficulty === 2 ? 'Trung bình (Intermediate)' : 'Khó (Advanced)';
-  const questionTypeLabel = data.questionType === 'multiple_choice' ? 'Trắc nghiệm' : data.questionType === 'fill_blank' ? 'Điền khuyết' : 'Tự luận';
 
   return `
-Bạn là một giáo viên chuyên môn. Hãy sinh ${data.count} câu hỏi ${questionTypeLabel} về chủ đề: ${data.topic}.
+Bạn là một giáo viên chuyên môn. Hãy sinh ${data.count} câu hỏi trắc nghiệm về chủ đề: ${data.topic}.
 
 Độ khó: ${difficultyLabel}
 
 Yêu cầu:
-1. Mỗi câu hỏi có 4 đáp án (A, B, C, D) nếu là trắc nghiệm
+1. Mỗi câu hỏi có 4 đáp án (A, B, C, D)
 2. Chỉ có 1 đáp án đúng
 3. Cung cấp giải thích chi tiết cho mỗi câu
 4. Câu hỏi phải chính xác về mặt kiến thức

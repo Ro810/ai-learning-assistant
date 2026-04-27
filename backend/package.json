@@ -7,7 +7,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "lint": "eslint src/**/*.ts"
+    "lint": "eslint src/**/*.ts",
+    "seed:subjects": "ts-node-dev --transpile-only src/scripts/seed-subjects.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

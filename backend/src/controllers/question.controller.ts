@@ -9,7 +9,7 @@ const generateQuestionsSchema = z.object({
   topicIds: z.array(z.string()).min(1, 'topicIds must contain at least one topic'),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
   count: z.number().int().min(1).max(50).optional(),
-  questionType: z.enum(['multiple_choice', 'fill_blank', 'essay']).optional(),
+  questionType: z.literal('multiple_choice').optional(),
 });
 
 export const generateQuestions = async (

@@ -9,14 +9,14 @@ export interface IGenerateQuestionsInput {
   topicIds: string[];
   difficulty: 1 | 2 | 3;
   count: number;
-  questionType: 'multiple_choice' | 'fill_blank' | 'essay';
+  questionType: 'multiple_choice';
 }
 
 export interface IQuestionPromptData {
   topic: string;
   difficulty: 1 | 2 | 3;
   count: number;
-  questionType: 'multiple_choice' | 'fill_blank' | 'essay';
+  questionType: 'multiple_choice';
 }
 
 export interface ILearningPathPromptData {

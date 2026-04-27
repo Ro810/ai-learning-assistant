@@ -38,7 +38,8 @@ const QuestionSchema = new Schema<IQuestionDocument>(
     type: {
       type: String,
       required: [true, 'Question type is required'],
-      enum: ['multiple_choice', 'fill_blank', 'essay'],
+      enum: ['multiple_choice'],
+      default: 'multiple_choice',
     },
     content: {
       questionText: {
