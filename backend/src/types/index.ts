@@ -84,7 +84,7 @@ export interface IQuestion {
     explanation: string;
   };
   metadata: {
-    generatedBy: 'claude' | 'gpt';
+    generatedBy: 'claude' | 'gemini' | 'gpt';
     generationPrompt: string;
     verified: boolean;
   };

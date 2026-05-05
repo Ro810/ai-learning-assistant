@@ -59,7 +59,7 @@ const QuestionSchema = new Schema<IQuestionDocument>(
     metadata: {
       generatedBy: {
         type: String,
-        enum: ['claude', 'gpt'],
+        enum: ['claude', 'gemini', 'gpt'],
         required: true,
       },
       generationPrompt: {

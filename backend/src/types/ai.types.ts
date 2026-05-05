@@ -50,4 +50,4 @@ export interface IMilestoneInput {
   }>;
 }
 
-export type AIProviderType = 'claude' | 'openai';
+export type AIProviderType = 'claude' | 'gemini' | 'openai';
