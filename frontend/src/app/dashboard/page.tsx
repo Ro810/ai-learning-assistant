@@ -10,6 +10,7 @@ import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth-context';
 import {
   assessmentApi,
@@ -99,7 +100,11 @@ function DashboardInner() {
         <section>
           <h2 className="mb-3 text-lg font-semibold">Bắt đầu bài đánh giá</h2>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Đang tải môn học...</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-32 w-full" />
+              ))}
+            </div>
           ) : subjects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               Chưa có môn nào. Hãy chạy <code>npm run seed:subjects</code> ở backend.
@@ -130,7 +135,11 @@ function DashboardInner() {
         <section>
           <h2 className="mb-3 text-lg font-semibold">Bài đánh giá của bạn</h2>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Đang tải...</p>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
           ) : assessments.length === 0 ? (
             <p className="text-sm text-muted-foreground">Chưa có bài đánh giá nào.</p>
           ) : (
@@ -145,7 +154,16 @@ function DashboardInner() {
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Tạo: {formatDate(a.createdAt)}
-                        {a.results && ` · Điểm: ${a.results.score}/100`}
+                        {a.results && (
+                          <>
+                            {' · '}
+                            <span className="font-medium text-foreground">
+                              {a.results.score}/100
+                            </span>
+                            {' '}({a.results.correctCount}/{a.results.totalQuestions} câu đúng
+                            {a.results.recommendedLevel && ` · ${a.results.recommendedLevel}`})
+                          </>
+                        )}
                       </p>
                     </div>
                     <Button asChild variant="outline" size="sm">

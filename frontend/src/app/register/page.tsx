@@ -5,6 +5,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,9 +31,12 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await register(email, password, name);
+      toast.success('Đăng ký thành công, chào mừng!');
       router.replace('/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

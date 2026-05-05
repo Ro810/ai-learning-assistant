@@ -6,6 +6,7 @@
 
 import { use, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -54,6 +55,19 @@ function TakeAssessmentInner({ id }: { id: string }) {
     [answers],
   );
 
+  // Browser-level warning when user tries to close/refresh while having
+  // unsubmitted answers. Internal nav still allowed (in_progress saved
+  // server-side, can resume from dashboard).
+  useEffect(() => {
+    if (answeredCount === 0 || submitting) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [answeredCount, submitting]);
+
   const handleSelect = (optionId: string) => {
     if (!currentQ) return;
     setAnswers((prev) => ({ ...prev, [currentQ.questionId]: optionId }));
@@ -61,6 +75,13 @@ function TakeAssessmentInner({ id }: { id: string }) {
 
   const handleSubmit = async () => {
     if (!assessment) return;
+    if (answeredCount < questions.length) {
+      const skipped = questions.length - answeredCount;
+      const ok = confirm(
+        `Bạn còn ${skipped} câu chưa trả lời. Vẫn nộp bài?`,
+      );
+      if (!ok) return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -69,9 +90,12 @@ function TakeAssessmentInner({ id }: { id: string }) {
         answer: answers[q.questionId] ?? '',
       }));
       await assessmentApi.submit(assessment._id, payload);
+      toast.success('Đã nộp bài, đang chấm...');
       router.replace(`/assessment/${assessment._id}/result`);
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
       setSubmitting(false);
     }
   };
@@ -81,9 +105,12 @@ function TakeAssessmentInner({ id }: { id: string }) {
     if (!confirm('Hủy bài này? Bạn sẽ không thể tiếp tục sau khi hủy.')) return;
     try {
       await assessmentApi.abandon(assessment._id);
+      toast.info('Đã hủy bài đánh giá.');
       router.push('/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     }
   };
 

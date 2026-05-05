@@ -5,6 +5,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,9 +31,12 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
+      toast.success('Đăng nhập thành công');
       router.replace('/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err));
+      const msg = getErrorMessage(err);
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
