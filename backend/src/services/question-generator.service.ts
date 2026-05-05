@@ -103,7 +103,7 @@ export class QuestionGeneratorService {
             explanation: q.explanation,
           },
           metadata: {
-            generatedBy: (process.env.AI_PROVIDER || 'claude') as 'claude' | 'gemini' | 'gpt',
+            generatedBy: 'gemini',
             generationPrompt: prompt,
             verified: false,
           },

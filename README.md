@@ -1,234 +1,132 @@
 # 🎓 AI Learning Assistant
-Web Hỗ Trợ Học Tập Cá Nhân Hóa
 
-## 📌 1. Giới thiệu
-AI Learning Assistant là một nền tảng web ứng dụng trí tuệ nhân tạo (AI) nhằm cá nhân hóa quá trình học tập dựa trên:
-- Trình độ hiện tại của người dùng
-- Mục tiêu học tập
-- Kết quả luyện tập theo thời gian
+Web hỗ trợ học tập cá nhân hóa: AI sinh đề kiểm tra đầu vào, tạo lộ trình học, sinh câu hỏi luyện tập theo chủ đề và độ khó, phân tích điểm yếu và đề xuất nội dung ôn tập tiếp theo.
 
-Hệ thống giúp người học:
-- Xác định điểm mạnh – điểm yếu
-- Nhận lộ trình học phù hợp
-- Luyện tập với câu hỏi được sinh tự động
-- Theo dõi tiến độ cải thiện
+## Tính năng chính
 
-Dự án hướng tới việc hỗ trợ học sinh, sinh viên và người tự học nâng cao hiệu quả học tập trong thời gian ngắn hơn.
+- **Đăng ký / đăng nhập** với JWT 7 ngày, đổi mật khẩu/email an toàn (bcrypt cost 12).
+- **Đánh giá đầu vào (assessment)** — AI sinh câu hỏi trắc nghiệm theo chủ đề và độ khó, chấm tự động, phân tích kỹ năng theo từng topic, đề xuất trình độ phù hợp.
+- **Lộ trình học (learning path)** — AI tạo kế hoạch theo tuần dựa trên kết quả đánh giá, mục tiêu và thời gian học mỗi tuần.
+- **Phiên luyện tập (practice session)** — Adaptive: 2 câu đúng liên tiếp tăng độ khó, 2 câu sai giảm. Bank-first: tái sử dụng câu hỏi đã sinh trước đó để giảm chi phí AI.
+- **Phân tích điểm yếu** — Topic có tỉ lệ đúng < 50% được lưu vào `weakTopics` của user và đề xuất luyện tập thêm.
+- **Single in-progress guard** — Mỗi user chỉ có 1 bài đang dở/môn (hoặc 1 phiên luyện tập toàn cục), tránh confusion UX.
 
-## 🎯 2. Mục tiêu dự án
-- Cá nhân hóa quá trình học thay vì học theo chương trình chung
-- Ứng dụng AI để tự động đánh giá và điều chỉnh nội dung học
-- Tối ưu thời gian ôn tập
-- Tăng khả năng ghi nhớ và cải thiện kết quả học tập
-- Xây dựng nền tảng có khả năng mở rộng thành sản phẩm thực tế
+## Stack
 
-## 👥 3. Đối tượng sử dụng
-- Học sinh ôn thi THPT
-- Người luyện thi IELTS
-- Sinh viên học lập trình
-- Người học tiếng Anh giao tiếp
-- Người tự học cần lộ trình rõ ràng
-
-## 🚀 4. Tính năng chính
-### 4.1 Đánh giá trình độ tự động
-- Sinh bài test đầu vào theo chủ đề
-- Chấm điểm tự động
-- Phân tích theo kỹ năng / chuyên đề
-- Xác định mức độ: Cơ bản – Trung bình – Nâng cao
-
-### 4.2 Tạo lộ trình học cá nhân hóa
-Hệ thống xây dựng kế hoạch học dựa trên:
-- Mục tiêu (IELTS 6.5, đỗ đại học, học Python cơ bản…)
-- Thời gian còn lại
-- Trình độ hiện tại
-
-Kết quả:
-- Phân chia nội dung theo tuần / ngày
-- Đề xuất nội dung cần tập trung
-- Gợi ý tài nguyên học phù hợp
-
-### 4.3 Sinh câu hỏi trắc nghiệm bằng AI
-- Tự động tạo câu hỏi theo chủ đề
-- Điều chỉnh độ khó theo năng lực
-- Cung cấp đáp án và lời giải thích
-- Tạo đề luyện tập mô phỏng
-
-### 4.4 Phân tích điểm yếu
-- Theo dõi kết quả từng bài làm
-- Xác định chủ đề sai nhiều
-- Đề xuất nội dung cần ôn tập lại
-- Gợi ý bài luyện tập bổ sung
-
-### 4.5 Gợi ý tài liệu học
-Hệ thống đề xuất tài nguyên dựa trên:
-- Trình độ người dùng
-- Chủ đề đang yếu
-- Mục tiêu học tập
-
-Tài nguyên có thể bao gồm:
-- Video học tập
-- Bài viết
-- Tài liệu PDF
-- Bài tập thực hành
-
-## 🧠 5. AI tích hợp trong hệ thống
-Hệ thống AI được sử dụng để:
-- Sinh bài test đánh giá trình độ
-- Tạo câu hỏi luyện tập
-- Phân tích dữ liệu học tập
-- Tạo lộ trình học thông minh
-- Gợi ý tài nguyên phù hợp
-
-Mở rộng trong tương lai:
-- Chatbot giải bài theo ngữ cảnh
-- Adaptive Learning (điều chỉnh độ khó theo thời gian thực)
-
-## 📊 6. Ứng dụng thực tế
-### 📚 Ôn thi THPT
-- Luyện đề theo chuyên đề
-- Phân tích lỗi sai
-- Tập trung vào phần mất điểm nhiều
-
-### 🇬🇧 Luyện thi IELTS
-- Sinh đề Reading / Listening
-- Gợi ý từ vựng theo band điểm
-- Phân tích kỹ năng yếu
-
-### 💻 Học lập trình
-- Tạo bài tập thực hành
-- Phân tích lỗi code
-- Đề xuất chủ đề tiếp theo
-
-### 🗣 Học tiếng Anh giao tiếp
-- Sinh hội thoại theo tình huống
-- Phản hồi ngữ pháp
-- Gợi ý cách diễn đạt tự nhiên hơn
-
-## 🏗 7. Kiến trúc hệ thống
-```
-Frontend (Next.js + TypeScript + Tailwind)
-       ↓ REST API
-Backend (Express + TypeScript + Mongoose)
-       ↓ HTTP
-AI Service (Claude/GPT API)
-       ↓
-MongoDB Database
-```
-
-**Stack chi tiết:**
 | Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS v4, shadcn/ui |
-| Backend | Express.js, TypeScript, Mongoose ODM |
-| Database | MongoDB |
-| AI | Claude API / OpenAI GPT |
-| Auth | JWT (jsonwebtoken) + bcryptjs |
-| Validation | Zod |
+|---|---|
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS v4, shadcn/ui, sonner, axios |
+| Backend | Express 4, TypeScript, Mongoose ODM, Zod validation |
+| Database | MongoDB (local hoặc Atlas) |
+| AI provider | Google Gemini / Gemma (free tier, không cần thẻ tín dụng) |
+| Auth | JWT + bcryptjs |
 
-**Luồng xử lý chính:**
-**Luồng xử lý chính:**
-Người dùng → Làm bài test → Backend gọi AI → Lưu kết quả → Phân tích → Tạo lộ trình học
+Kiến trúc:
+```
+Frontend ──REST API──► Backend ──► MongoDB
+                          │
+                          └─► Gemini API
+```
 
-## 📂 8. Cấu trúc dự án
+Backend dùng interface `IAIProvider` nên dễ thay nhà cung cấp AI sau này (chỉ cần viết 1 service mới implement cùng interface).
+
+## Cấu trúc thư mục
+
 ```
 ai-learning-assistant/
-├── backend/                  # Express + TypeScript + MongoDB
+├── backend/                       # Express + TypeScript
 │   ├── src/
-│   │   ├── config/
-│   │   │   ├── database.ts          # MongoDB connection
-│   │   │   ├── mongoose-setup.ts    # Env vars + mongoose config
-│   │   │   └── swagger.ts          # Swagger config
-│   │   ├── middleware/
-│   │   │   └── auth.middleware.ts  # JWT auth
-│   │   ├── models/
-│   │   │   ├── user.model.ts       # User schema
-│   │   │   ├── subject.model.ts   # Subject + topics
-│   │   │   ├── question.model.ts  # AI questions
-│   │   │   ├── assessment.model.ts # Entry tests
-│   │   │   ├── learning-path.model.ts
-│   │   │   ├── practice-session.model.ts
-│   │   │   └── index.ts
-│   │   ├── routes/
-│   │   │   └── auth.routes.ts    # Auth API
-│   │   ├── services/
-│   │   │   └── auth.service.ts   # Auth logic
-│   │   ├── types/
-│   │   │   └── index.ts          # TS interfaces
-│   │   ├── app.ts                # Express setup
-│   │   └── server.ts             # Entry point
-│   ├── package.json
-│   ├── tsconfig.json
+│   │   ├── config/                # database, mongoose, swagger
+│   │   ├── controllers/           # 6 controller (assessment, practice, ...)
+│   │   ├── middleware/            # JWT auth
+│   │   ├── models/                # 6 Mongoose schema
+│   │   ├── routes/                # 7 router file (35 endpoint)
+│   │   ├── scripts/               # seed-subjects
+│   │   ├── services/              # AI provider + business logic
+│   │   ├── types/                 # TS interface
+│   │   ├── app.ts                 # Express setup
+│   │   └── server.ts              # Entry point
 │   └── .env.example
 │
-├── frontend/                 # Giao diện người dùng (Next.js)
+├── frontend/                      # Next.js + TypeScript
 │   ├── src/
-│   │   ├── app/
-│   │   ├── components/
-│   │   ├── services/
-│   │   └── ...
+│   │   ├── app/                   # login, register, dashboard, assessment/...
+│   │   ├── components/            # app-header, protected-route, ui/
+│   │   └── lib/                   # api-client, api-services, auth-context, types
+│   └── package.json
 │
-├── docs/                     # Tài liệu & báo cáo tiến độ
-│   ├── Week1-Requirement-Analysis.md
-│   ├── Week2-Backend-Setup.md
-│   ├── Week3-AI-Integration.md
-│   ├── Week4-API-Completion.md
-│   ├── Week5-Frontend-Basic.md
-│   ├── Week6-Dashboard.md
-│   ├── Week7-Optimization.md
-│   └── Week8-Deployment-Report.md
+├── docs/
+│   ├── pdf/                       # Báo cáo PDF từng tuần (nộp giảng viên)
+│   └── build-pdf.sh               # Script regenerate PDF từ markdown
 │
+├── playground-1.mongodb.js        # Query mẫu xem DB
 └── README.md
 ```
 
-## ⚙️ 9. Cài đặt & Chạy dự án
-1️⃣ **Clone project**
-```bash
-git clone https://github.com/Ro810/ai-learning-assistant.git
-cd ai-learning-assistant
-```
-2️⃣ **Cài đặt Backend**
+## Yêu cầu
+
+- Node.js ≥ 20
+- MongoDB local (`winget install MongoDB.Server`) hoặc account Atlas
+- Google Gemini API key (free tier): https://aistudio.google.com/apikey
+
+## Cài đặt & chạy
+
+### Backend
+
 ```bash
 cd backend
 npm install
+cp .env.example .env       # rồi sửa MONGODB_URI + GEMINI_API_KEY
+npm run seed:subjects      # seed 4 môn mặc định
+npm run dev                # http://localhost:5000
 ```
-3️⃣ **Chạy Backend**
-```bash
-# Với MongoDB thật
-npm run dev
 
-# Không cần MongoDB (Mock Mode)
-MONGODB_URI=mock npm run dev
-```
-4️⃣ **Cài đặt Frontend (Next.js)**
+Swagger UI tại http://localhost:5000/api-docs.
+
+Chạy không cần MongoDB (chỉ test auth): `MONGODB_URI=mock npm run dev`.
+
+### Frontend
+
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev                # http://localhost:3000
 ```
 
-**API Documentation:** http://localhost:5000/api-docs
+Mặc định gọi `http://localhost:5000/api`. Đổi qua `frontend/.env.local`:
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+```
 
-## 🔮 10. Hướng phát triển tương lai
-- 🤖 Chatbot giải bài theo môn học
-- 📈 Dashboard phân tích nâng cao
-- 🏆 Gamification (điểm thưởng, huy hiệu)
-- 📱 Ứng dụng mobile
-- 🧑‍🏫 Hệ thống giáo viên theo dõi học sinh
-- 🧠 Adaptive Learning nâng cao
+### Smoke test
 
-## 🌟 11. Điểm nổi bật của dự án
-- Cá nhân hóa hoàn toàn lộ trình học
-- AI sinh nội dung tự động
-- Phân tích dữ liệu học tập thông minh
-- Ứng dụng thực tế cao
-- Có tiềm năng thương mại hóa
+1. Đăng ký tài khoản tại http://localhost:3000
+2. Dashboard → chọn môn → "Bắt đầu" → AI sinh câu hỏi (~10-30s)
+3. Trả lời → "Nộp bài" → xem điểm + phân tích kỹ năng + review từng câu
+4. Bài hiện trên Dashboard kèm điểm và trình độ đề xuất
 
----
-## 👨‍💻 Tác Giả
+## Database
 
-**Sinh viên thực hiện:**
+4 môn mặc định sau khi `npm run seed:subjects`:
+- Toán THPT (5 chủ đề)
+- IELTS (5 chủ đề)
+- Lập trình Python (4 chủ đề)
+- Tiếng Anh giao tiếp (4 chủ đề)
 
-- **Họ và tên:** Trần Đỗ Lan Phương
-- **MSV:** B23DCCN667
-- **Giảng viên hướng dẫn:** Nguyễn Xuân Đức
+6 collection chính: `users`, `subjects`, `questions`, `assessments`, `learningpaths`, `practicesessions`.
 
+Xem dữ liệu nhanh bằng VSCode MongoDB extension + file [playground-1.mongodb.js](playground-1.mongodb.js).
+
+## Hướng phát triển tiếp
+
+- Practice UI + Profile page + Learning Path detail
+- Biểu đồ điểm yếu (chart)
+- Server-side auth middleware (Next.js)
+- Docker compose deployment
+- Mobile app (React Native)
+
+## Tác giả
+
+- Trần Đỗ Lan Phương — MSV B23DCCN667
+- GVHD: TS. Nguyễn Xuân Đức
+- Repo: https://github.com/Ro810/ai-learning-assistant

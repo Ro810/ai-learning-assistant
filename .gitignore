@@ -4,6 +4,9 @@
 # Repomix snapshot (regenerated on demand)
 repomix-output.xml
 
+# Source markdown for weekly reports — chỉ commit PDF
+docs/Week*.md
+
 # OS
 .DS_Store
 Thumbs.db
