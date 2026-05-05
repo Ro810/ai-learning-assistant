@@ -1,0 +1,16 @@
+# Local Claude Code workspace (not for sharing)
+.claude/
+
+# Repomix snapshot (regenerated on demand)
+repomix-output.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

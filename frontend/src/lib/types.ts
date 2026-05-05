@@ -1,0 +1,146 @@
+// Shared types mirroring backend response shapes (Week 1-4 contracts).
+// Keep loose where backend returns optional/dynamic data.
+
+export interface User {
+  id: string;
+  email: string;
+  profile: {
+    name: string;
+    avatarUrl?: string;
+    grade?: string;
+  };
+  learningGoals?: Array<{
+    subjectId: string;
+    targetLevel: string;
+    targetDate?: string;
+  }>;
+  currentLevel?: {
+    subjectId?: string;
+    level?: string;
+    weakTopics?: string[];
+  };
+  createdAt?: string;
+}
+
+// Backend register/login return a flat user (id, email, name).
+// Full user object (with profile, learningGoals, currentLevel) is fetched
+// from /auth/me afterwards.
+export interface AuthResponse {
+  token: string;
+  user: { id: string; email: string; name: string };
+}
+
+export interface Topic {
+  _id: string;
+  name: string;
+  parentId?: string | null;
+}
+
+export interface Subject {
+  _id: string;
+  name: string;
+  code: string;
+  description?: string;
+  topics: Topic[];
+}
+
+export interface QuestionOption {
+  id: string;
+  text: string;
+}
+
+export interface QuestionContent {
+  questionText: string;
+  options: QuestionOption[];
+  correctAnswer?: string;
+  explanation?: string;
+}
+
+export interface AssessmentQuestion {
+  questionId: string;
+  questionSnapshot: {
+    _id?: string;
+    topicIds?: string[];
+    difficulty?: number;
+    type?: string;
+    content: QuestionContent;
+  };
+  userAnswer?: string | null;
+  isCorrect?: boolean | null;
+  timeSpentSeconds?: number | null;
+}
+
+export interface SkillAnalysisItem {
+  topicId: string;
+  correct: number;
+  total: number;
+  level: string;
+}
+
+export interface AssessmentResults {
+  score: number;
+  correctCount: number;
+  totalQuestions: number;
+  skillAnalysis: SkillAnalysisItem[];
+  recommendedLevel: string;
+}
+
+export interface Assessment {
+  _id: string;
+  userId: string;
+  subjectId: string;
+  status: 'in_progress' | 'completed' | 'abandoned';
+  questions: AssessmentQuestion[];
+  results?: AssessmentResults;
+  completedAt?: string | null;
+  createdAt: string;
+}
+
+export interface AssessmentSummary {
+  _id: string;
+  subjectId: string;
+  status: 'in_progress' | 'completed' | 'abandoned';
+  results?: AssessmentResults;
+  createdAt: string;
+  completedAt?: string | null;
+}
+
+export interface LearningPathSummary {
+  _id: string;
+  userId: string;
+  subjectId: string;
+  targetLevel?: string;
+  targetDate?: string;
+  status?: string;
+  milestones?: Array<{
+    week?: number;
+    title?: string;
+    completed?: boolean;
+  }>;
+  createdAt: string;
+}
+
+export interface PracticeSessionSummary {
+  _id: string;
+  status: 'in_progress' | 'completed' | 'abandoned';
+  mode?: string;
+  results?: {
+    score?: number;
+    totalCorrect?: number;
+    totalQuestions?: number;
+  };
+  createdAt: string;
+}
+
+export interface ApiSuccess<T> {
+  success: true;
+  data: T;
+  message?: string;
+}
+
+export interface ApiError {
+  success: false;
+  message: string;
+  errors?: Array<{ message: string; path?: (string | number)[] }>;
+  data?: { existingId?: string };
+}
