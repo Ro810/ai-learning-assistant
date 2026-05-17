@@ -132,6 +132,79 @@ export interface PracticeSessionSummary {
   createdAt: string;
 }
 
+// ----- Learning Path (full) -----
+
+export interface LearningPathMilestone {
+  week: number;
+  topicIds: string[];
+  difficulty: 1 | 2 | 3;
+  estimatedDays: number;
+  resources: string[];
+  completed: boolean;
+}
+
+export interface LearningPath {
+  _id: string;
+  userId: string;
+  subjectId: string;
+  basedOnAssessmentId?: string;
+  targetLevel: 'basic' | 'intermediate' | 'advanced';
+  targetDate: string;
+  milestones: LearningPathMilestone[];
+  status: string;
+  createdAt: string;
+}
+
+// ----- Practice Session (full) -----
+
+export interface PracticeQuestion {
+  questionId: string;
+  questionSnapshot: {
+    content: {
+      questionText: string;
+      options: Array<{ id: string; text: string }>;
+      correctAnswer?: string;
+      explanation?: string;
+    };
+  };
+  userAnswer?: string | null;
+  isCorrect?: boolean | null;
+}
+
+export interface PracticeSession {
+  _id: string;
+  userId: string;
+  subjectId: string;
+  mode: 'adaptive' | 'exam_simulation';
+  status: 'in_progress' | 'completed' | 'abandoned';
+  adaptiveState: {
+    currentDifficulty: 1 | 2 | 3;
+    consecutiveCorrect: number;
+    consecutiveWrong: number;
+  };
+  questions: PracticeQuestion[];
+  results?: {
+    score: number;
+    accuracy: number;
+    totalCorrect: number;
+    totalQuestions: number;
+    avgTimePerQuestion: number;
+  };
+  createdAt: string;
+}
+
+// ----- Weak Topics -----
+
+export interface WeakTopicItem {
+  topicId: string;
+  topicName?: string;
+  subjectId: string;
+  subjectName?: string;
+  rate: number;
+  correct: number;
+  total: number;
+}
+
 export interface ApiSuccess<T> {
   success: true;
   data: T;
