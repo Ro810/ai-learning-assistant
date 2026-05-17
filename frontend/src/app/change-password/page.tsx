@@ -25,10 +25,9 @@ function ChangePasswordInner() {
     e.preventDefault();
     setError(null);
 
-    if (newPassword.length < 8) {
-      setError('Mật khẩu mới phải có ít nhất 8 ký tự.');
-      return;
-    }
+    // Min-length lỗi đã hiện inline dưới ô nhập — chỉ block submit, không
+    // nhân đôi message ở box đỏ phía trên.
+    if (newPassword.length < 8) return;
     if (newPassword !== confirmPassword) {
       setError('Xác nhận mật khẩu không khớp.');
       return;
@@ -44,7 +43,12 @@ function ChangePasswordInner() {
       toast.success('Đổi mật khẩu thành công!');
       router.push('/profile');
     } catch (err) {
-      const msg = getErrorMessage(err);
+      // Backend trả 'Invalid current password' khi mật khẩu cũ sai —
+      // map về tiếng Việt thân thiện. Các lỗi khác giữ nguyên.
+      const raw = getErrorMessage(err);
+      const msg = /invalid current password/i.test(raw)
+        ? 'Mật khẩu cũ không đúng.'
+        : raw;
       setError(msg);
       toast.error(msg);
     } finally {
@@ -75,7 +79,6 @@ function ChangePasswordInner() {
                   type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
                   autoComplete="current-password"
                   disabled={submitting}
                   required
@@ -94,6 +97,11 @@ function ChangePasswordInner() {
                   required
                   minLength={8}
                 />
+                {newPassword.length > 0 && newPassword.length < 8 && (
+                  <p className="text-xs text-destructive">
+                    Mật khẩu tối thiểu 8 ký tự.
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">

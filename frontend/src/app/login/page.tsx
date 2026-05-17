@@ -34,7 +34,12 @@ export default function LoginPage() {
       toast.success('Đăng nhập thành công');
       router.replace('/dashboard');
     } catch (err) {
-      const msg = getErrorMessage(err);
+      // Backend trả 'Invalid email or password' cho cả 2 trường hợp sai
+      // (cố ý — chống user enumeration). Map sang tiếng Việt thân thiện.
+      const raw = getErrorMessage(err);
+      const msg = /invalid email or password/i.test(raw)
+        ? 'Email hoặc mật khẩu không đúng.'
+        : raw;
       setError(msg);
       toast.error(msg);
     } finally {
@@ -67,7 +72,6 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
               />
             </div>
             {error && (

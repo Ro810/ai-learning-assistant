@@ -196,7 +196,9 @@ export const practiceApi = {
 
 export const userApi = {
   updateProfile: async (input: { name?: string; grade?: string; avatarUrl?: string }) => {
-    const res = await api.patch<Envelope<{ user: User }>>('/users/me', input);
+    // Backend expects { profile: { ... } } — see updateProfileSchema in
+    // backend/src/controllers/user.controller.ts (uses .strict()).
+    const res = await api.patch<Envelope<{ user: User }>>('/users/me', { profile: input });
     return unwrap(res.data).user;
   },
   addLearningGoal: async (input: {
