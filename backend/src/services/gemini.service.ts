@@ -14,7 +14,9 @@ export class GeminiService implements IAIProvider {
       throw new Error('GEMINI_API_KEY is not configured');
     }
     this.client = new GoogleGenAI({ apiKey });
-    this.model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+    // Default to 2.5-flash: 2.0-flash free-tier RPD quota is easily exhausted,
+    // and 1.5-* family was deprecated by Google in 2025.
+    this.model = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   }
 
   async generateContent(prompt: string): Promise<string> {

@@ -4,6 +4,13 @@
 # Repomix snapshot (regenerated on demand)
 repomix-output.xml
 
+# Báo cáo tiến độ & kế hoạch (lưu local, không commit lên repo)
+BaoCaoTienDo/
+Ke-hoach-6-tuan.docx
+
+# Implementation plans (Claude Code working artifacts)
+plans/
+
 # Source markdown for weekly reports — chỉ commit PDF
 docs/Week*.md
 

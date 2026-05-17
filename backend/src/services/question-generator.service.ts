@@ -73,20 +73,52 @@ export class QuestionGeneratorService {
       questionType: input.questionType,
     });
 
-    const response = await aiService.generate(prompt);
+    let response: string;
+    try {
+      response = await aiService.generate(prompt);
+    } catch (err: any) {
+      // Surface SDK-level error (auth, quota, network) with clear context
+      console.error('[QuestionGenerator] Gemini SDK error:', err?.message);
+      throw new Error(`Gemini SDK error: ${err?.message ?? 'unknown'}`);
+    }
 
-    // Parse JSON response
+    if (!response || response.trim().length === 0) {
+      console.error('[QuestionGenerator] Empty response from Gemini');
+      throw new Error('Gemini returned empty response');
+    }
+
+    // Strip markdown code fences (```json ... ``` or ``` ... ```) which Gemini
+    // often wraps JSON in despite the "no text" instruction.
+    const cleanResponse = response
+      .replace(/^```(?:json)?\s*/i, '')
+      .replace(/\s*```\s*$/, '')
+      .trim();
+
     let questionsData: any[];
     try {
-      questionsData = JSON.parse(response);
-    } catch (error) {
-      // Try to extract JSON from response
-      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      questionsData = JSON.parse(cleanResponse);
+    } catch {
+      // Fallback: extract the first JSON array anywhere in the text
+      const jsonMatch = cleanResponse.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        questionsData = JSON.parse(jsonMatch[0]);
+        try {
+          questionsData = JSON.parse(jsonMatch[0]);
+        } catch (parseErr: any) {
+          console.error('[QuestionGenerator] JSON parse failed. Raw response (first 500 chars):',
+            response.slice(0, 500));
+          throw new Error(`Failed to parse AI response as JSON: ${parseErr?.message}`);
+        }
       } else {
-        throw new Error('Failed to parse AI response as JSON');
+        console.error('[QuestionGenerator] No JSON array found in response (first 500 chars):',
+          response.slice(0, 500));
+        throw new Error('AI response contains no JSON array');
       }
+    }
+
+    if (!Array.isArray(questionsData) || questionsData.length === 0) {
+      console.error('[QuestionGenerator] Parsed data is not a non-empty array:',
+        JSON.stringify(questionsData).slice(0, 300));
+      throw new Error('AI response parsed but is not a non-empty array');
     }
 
     // Save questions to database
