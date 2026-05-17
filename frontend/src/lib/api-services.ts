@@ -188,7 +188,7 @@ export const practiceApi = {
     const res = await api.get<Envelope<{ items: WeakTopicItem[] }>>(
       '/practice-sessions/analytics/weak-topics',
     );
-    return unwrap(res.data).items;
+    return unwrap(res.data).items ?? [];
   },
 };
 
