@@ -37,12 +37,18 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// On 401, drop the token; UI layer decides whether to redirect.
+// On 401, drop the token ONLY when the failure is actually a token problem
+// (missing / invalid / expired). Endpoints like change-password and
+// change-email also return 401 when the *user-supplied* password is wrong —
+// those must not log the user out.
 api.interceptors.response.use(
   (res) => res,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      clearToken();
+      const msg =
+        (error.response?.data as { message?: string } | undefined)?.message ?? '';
+      const isTokenIssue = /token|access denied/i.test(msg);
+      if (isTokenIssue) clearToken();
     }
     return Promise.reject(error);
   },
