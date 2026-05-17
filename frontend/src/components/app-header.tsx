@@ -5,7 +5,6 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
 
 const NAV_LINKS = [
@@ -13,11 +12,14 @@ const NAV_LINKS = [
   { href: '/learning-path', label: 'Lộ trình' },
   { href: '/practice/new', label: 'Luyện tập' },
   { href: '/weakness', label: 'Điểm yếu' },
-  { href: '/profile', label: 'Hồ sơ' },
 ] as const;
 
+// First letter of name for the fallback avatar — falls back to '?' if no name.
+const initialOf = (name?: string) =>
+  (name?.trim()?.[0] ?? '?').toUpperCase();
+
 export function AppHeader() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const pathname = usePathname();
 
   return (
@@ -52,20 +54,30 @@ export function AppHeader() {
           </nav>
         </div>
 
-        {/* User info + logout */}
-        <div className="flex items-center gap-3 text-sm shrink-0">
-          {user && (
-            <Link
-              href="/profile"
-              className="text-muted-foreground hidden md:inline hover:text-foreground transition-colors"
-            >
-              {user.profile.name}
-            </Link>
-          )}
-          <Button variant="outline" size="sm" onClick={logout}>
-            Đăng xuất
-          </Button>
-        </div>
+        {/* Avatar + tên → trang Profile (đăng xuất nằm trong trang Profile) */}
+        {user && (
+          <Link
+            href="/profile"
+            title="Xem hồ sơ"
+            className="flex items-center gap-2 shrink-0 rounded-full pl-1 pr-3 py-1 text-sm transition hover:bg-accent"
+          >
+            {user.profile.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.profile.avatarUrl}
+                alt={user.profile.name || 'Avatar'}
+                className="h-9 w-9 rounded-full object-cover border"
+              />
+            ) : (
+              <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold border">
+                {initialOf(user.profile.name)}
+              </div>
+            )}
+            <span className="font-medium hidden sm:inline">
+              {user.profile.name || 'Hồ sơ'}
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* Mobile nav */}

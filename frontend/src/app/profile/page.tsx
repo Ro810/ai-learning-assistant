@@ -1,20 +1,25 @@
 'use client';
 
-// Profile page: edit personal info + manage learning goals.
-// Uses useAuth() for current user; refreshes local state after mutation
-// by calling authApi.me() since AuthContext has no refreshUser method.
+// Profile page: edit personal info + manage learning goals + account actions.
+// Refresh local user state after mutations by calling authApi.me() since
+// AuthContext has no refreshUser method.
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Pencil, X, KeyRound } from 'lucide-react';
+import {
+  Pencil,
+  X,
+  KeyRound,
+  LogOut,
+  ChevronRight,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/auth-context';
 import { authApi, subjectApi, userApi } from '@/lib/api-services';
@@ -64,7 +69,6 @@ const resizeImageToDataUrl = async (file: File): Promise<string> => {
   if (!ctx) throw new Error('Trình duyệt không hỗ trợ canvas.');
   ctx.drawImage(img, 0, 0, w, h);
 
-  // JPEG (not PNG) — much smaller for photographic avatars
   return canvas.toDataURL('image/jpeg', AVATAR_QUALITY);
 };
 
@@ -73,35 +77,25 @@ function formatDate(iso?: string | null) {
   return new Date(iso).toLocaleDateString('vi-VN');
 }
 
+const initialOf = (name?: string) =>
+  (name?.trim()?.[0] ?? '?').toUpperCase();
+
 function ProfileInner() {
-  const { user: ctxUser } = useAuth();
-  // Local user copy so we can update after mutations without touching AuthContext
+  const { user: ctxUser, logout } = useAuth();
   const [user, setUser] = useState<User | null>(ctxUser);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectsLoading, setSubjectsLoading] = useState(true);
 
-  // Profile form
+  // Edit-profile state
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(ctxUser?.profile.name ?? '');
   const [grade, setGrade] = useState(ctxUser?.profile.grade ?? '');
-  // avatarUrl holds either an http(s) URL from server or a base64 data URL
-  // from a freshly picked local file. Both are valid for `<img src>` and
-  // pass backend Zod `.string().url()` validation.
   const [avatarUrl, setAvatarUrl] = useState(ctxUser?.profile.avatarUrl ?? '');
   const [savingProfile, setSavingProfile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Sync form fields from user when entering edit mode or when user data
-  // arrives after first render (AuthContext can be null on initial paint).
-  useEffect(() => {
-    if (!isEditing) {
-      setName(user?.profile.name ?? '');
-      setGrade(user?.profile.grade ?? '');
-      setAvatarUrl(user?.profile.avatarUrl ?? '');
-    }
-  }, [user, isEditing]);
-
-  // Learning goal form
+  // Learning-goal state
+  const [showGoalForm, setShowGoalForm] = useState(false);
   const [goalSubjectId, setGoalSubjectId] = useState('');
   const [goalLevel, setGoalLevel] = useState<'basic' | 'intermediate' | 'advanced'>('basic');
   const [goalDate, setGoalDate] = useState('');
@@ -117,12 +111,21 @@ function ProfileInner() {
         setSubjects(data);
         if (data.length > 0) setGoalSubjectId(data[0]._id);
       })
-      .catch(() => {/* subjects not critical */})
+      .catch(() => { /* subjects not critical */ })
       .finally(() => active && setSubjectsLoading(false));
     return () => { active = false; };
   }, []);
 
-  // Refresh local user from /auth/me after any mutation
+  // Sync form fields from user when not currently editing (handles late-arrival
+  // of AuthContext data, or post-save refresh).
+  useEffect(() => {
+    if (!isEditing) {
+      setName(user?.profile.name ?? '');
+      setGrade(user?.profile.grade ?? '');
+      setAvatarUrl(user?.profile.avatarUrl ?? '');
+    }
+  }, [user, isEditing]);
+
   const refreshUser = async () => {
     try {
       const updated = await authApi.me();
@@ -135,7 +138,6 @@ function ProfileInner() {
 
   const handlePickAvatar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Reset input so the same file can be re-selected after a failed try
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
@@ -177,7 +179,6 @@ function ProfileInner() {
   };
 
   const handleCancelEdit = () => {
-    // Revert form fields to last saved values, then exit edit mode
     setName(user?.profile.name ?? '');
     setGrade(user?.profile.grade ?? '');
     setAvatarUrl(user?.profile.avatarUrl ?? '');
@@ -197,6 +198,7 @@ function ProfileInner() {
       });
       setUser(updated);
       setGoalDate('');
+      setShowGoalForm(false);
       toast.success('Đã thêm mục tiêu học tập.');
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -227,244 +229,258 @@ function ProfileInner() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 py-6 space-y-8">
-        <section>
-          <h1 className="text-2xl font-semibold">Hồ sơ cá nhân</h1>
-          <p className="text-sm text-muted-foreground">
-            Cập nhật thông tin và quản lý mục tiêu học tập.
-          </p>
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12 space-y-10">
+
+        {/* HERO — avatar + identity + edit trigger */}
+        <section className="flex flex-col sm:flex-row sm:items-center gap-6">
+          <div className="shrink-0 mx-auto sm:mx-0">
+            {user?.profile.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.profile.avatarUrl}
+                alt="Avatar"
+                className="h-24 w-24 rounded-full object-cover border border-border"
+              />
+            ) : (
+              <div className="h-24 w-24 rounded-full bg-foreground text-background flex items-center justify-center text-3xl font-semibold">
+                {initialOf(user?.profile.name)}
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-center sm:text-left">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight truncate">
+              {user?.profile.name || 'Chưa đặt tên'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1 truncate">
+              {user?.email}
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Tham gia từ {formatDate(user?.createdAt)}
+            </p>
+          </div>
+          {!isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="self-center sm:self-start"
+            >
+              <Pencil className="h-3.5 w-3.5 mr-2" />
+              Chỉnh sửa
+            </Button>
+          )}
         </section>
 
-        {/* Personal info */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Thông tin cá nhân</CardTitle>
-            {isEditing ? (
+        {/* PERSONAL INFO — edit form OR read-only rows */}
+        {isEditing ? (
+          <section className="rounded-2xl border border-border bg-card p-6 sm:p-7">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-base font-semibold tracking-tight">
+                Chỉnh sửa thông tin
+              </h2>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
                 onClick={handleCancelEdit}
                 disabled={savingProfile}
-                aria-label="Hủy chỉnh sửa"
-                title="Hủy"
+                aria-label="Hủy"
               >
                 <X className="h-4 w-4" />
               </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(true)}
-                aria-label="Chỉnh sửa thông tin"
-                title="Chỉnh sửa"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            {isEditing ? (
-              <form onSubmit={handleSaveProfile} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Email</label>
-                  <Input value={user?.email ?? ''} disabled className="bg-muted" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Tên hiển thị</label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Nguyễn Văn A"
-                    disabled={savingProfile}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-sm font-medium">Lớp / Khối</label>
-                  <Input
-                    value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
-                    placeholder="VD: 12A1, Lớp 10..."
-                    disabled={savingProfile}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Ảnh đại diện</label>
-                  <div className="flex items-center gap-4">
-                    {avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={avatarUrl}
-                        alt="Avatar preview"
-                        className="h-16 w-16 rounded-full object-cover border"
-                      />
-                    ) : (
-                      <div className="h-16 w-16 rounded-full border bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                        No image
-                      </div>
-                    )}
-                    <div className="flex flex-col gap-2">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handlePickAvatar}
-                        className="hidden"
-                        disabled={savingProfile}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={savingProfile}
-                        >
-                          {avatarUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
-                        </Button>
-                        {avatarUrl && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleRemoveAvatar}
-                            disabled={savingProfile}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            Gỡ ảnh
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        PNG/JPG, tối đa 5MB. Ảnh sẽ được nén còn ~256px.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={savingProfile}>
-                    {savingProfile ? 'Đang lưu...' : 'Lưu thông tin'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                    disabled={savingProfile}
-                  >
-                    Hủy
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              // Display mode — read-only view, switch to edit via the pencil icon above
-              <div className="space-y-4">
+            </div>
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              {/* Avatar picker */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Ảnh đại diện</label>
                 <div className="flex items-center gap-4">
-                  {user?.profile.avatarUrl ? (
+                  {avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={user.profile.avatarUrl}
-                      alt="Avatar"
-                      className="h-20 w-20 rounded-full object-cover border"
+                      src={avatarUrl}
+                      alt="Avatar preview"
+                      className="h-16 w-16 rounded-full object-cover border border-border"
                     />
                   ) : (
-                    <div className="h-20 w-20 rounded-full border bg-muted flex items-center justify-center text-xs text-muted-foreground">
-                      No image
+                    <div className="h-16 w-16 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-xl font-semibold">
+                      {initialOf(name)}
                     </div>
                   )}
-                  <div>
-                    <p className="text-lg font-medium">
-                      {user?.profile.name || '—'}
+                  <div className="flex flex-col gap-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePickAvatar}
+                      className="hidden"
+                      disabled={savingProfile}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={savingProfile}
+                      >
+                        {avatarUrl ? 'Đổi ảnh' : 'Chọn ảnh'}
+                      </Button>
+                      {avatarUrl && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveAvatar}
+                          disabled={savingProfile}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          Gỡ ảnh
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      PNG/JPG, tối đa 5MB. Tự nén còn ~256px.
                     </p>
-                    <p className="text-sm text-muted-foreground">{user?.email}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Lớp / Khối</p>
-                    <p className="font-medium">{user?.profile.grade || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Ngày tham gia</p>
-                    <p className="font-medium">{formatDate(user?.createdAt)}</p>
                   </div>
                 </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Security */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Bảo mật</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/change-password">
-                <KeyRound className="h-4 w-4 mr-2" />
-                Đổi mật khẩu
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Tên hiển thị</label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                  disabled={savingProfile}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Email</label>
+                <Input value={user?.email ?? ''} disabled className="bg-muted" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Lớp / Khối</label>
+                <Input
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  placeholder="VD: 12A1, Lớp 10..."
+                  disabled={savingProfile}
+                />
+              </div>
 
-        <Separator />
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" disabled={savingProfile}>
+                  {savingProfile ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelEdit}
+                  disabled={savingProfile}
+                >
+                  Hủy
+                </Button>
+              </div>
+            </form>
+          </section>
+        ) : (
+          <section className="rounded-2xl border border-border bg-card overflow-hidden">
+            <InfoRow label="Tên hiển thị" value={user?.profile.name || '—'} />
+            <Divider />
+            <InfoRow label="Email" value={user?.email || '—'} />
+            <Divider />
+            <InfoRow label="Lớp / Khối" value={user?.profile.grade || '—'} />
+          </section>
+        )}
 
-        {/* Learning goals */}
+        {/* LEARNING GOALS */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold">Mục tiêu học tập</h2>
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">
+                Mục tiêu học tập
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Theo dõi cấp độ và thời hạn cho từng môn.
+              </p>
+            </div>
+            {!showGoalForm && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowGoalForm(true)}
+                className="shrink-0"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Thêm
+              </Button>
+            )}
+          </div>
 
-          {/* Existing goals */}
           {goals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Chưa có mục tiêu nào.</p>
+            <div className="rounded-2xl border border-dashed border-border py-12 text-center">
+              <p className="text-sm text-muted-foreground">
+                Chưa có mục tiêu nào.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-2">
-              {goals.map((g) => {
+            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              {goals.map((g, idx) => {
                 const isRemoving = removingGoalId === g.subjectId;
                 return (
-                  <Card key={g.subjectId}>
-                    <CardContent className="flex items-center justify-between py-3">
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{subjectName(g.subjectId)}</span>
-                          <Badge variant="outline">
+                  <div key={g.subjectId}>
+                    {idx > 0 && <Divider />}
+                    <div className="flex items-center justify-between px-5 py-4 gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">
+                          {subjectName(g.subjectId)}
+                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                          <span className="rounded-full bg-muted px-2 py-0.5 font-medium text-foreground">
                             {levelLabels[g.targetLevel] ?? g.targetLevel}
-                          </Badge>
+                          </span>
+                          {g.targetDate && (
+                            <span>Hạn {formatDate(g.targetDate)}</span>
+                          )}
                         </div>
-                        {g.targetDate && (
-                          <p className="text-xs text-muted-foreground">
-                            Mục tiêu: {formatDate(g.targetDate)}
-                          </p>
-                        )}
                       </div>
                       <Button
                         variant="ghost"
-                        size="sm"
+                        size="icon"
                         onClick={() => handleRemoveGoal(g.subjectId)}
                         disabled={isRemoving}
-                        className="text-destructive hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                        aria-label="Xóa mục tiêu"
                       >
-                        {isRemoving ? '...' : 'Xóa'}
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
 
-          {/* Add goal form */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Thêm mục tiêu mới</CardTitle>
-            </CardHeader>
-            <CardContent>
+          {/* Add-goal inline form */}
+          {showGoalForm && (
+            <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold">Thêm mục tiêu mới</h3>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowGoalForm(false)}
+                  aria-label="Đóng"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
               {subjectsLoading ? (
                 <Skeleton className="h-10 w-full" />
               ) : (
                 <form onSubmit={handleAddGoal} className="space-y-3">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-sm font-medium">Môn học</label>
                     <select
                       value={goalSubjectId}
@@ -477,7 +493,7 @@ function ProfileInner() {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-sm font-medium">Cấp độ mục tiêu</label>
                     <select
                       value={goalLevel}
@@ -492,7 +508,7 @@ function ProfileInner() {
                       <option value="advanced">Nâng cao</option>
                     </select>
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <label className="text-sm font-medium">Ngày mục tiêu</label>
                     <input
                       type="date"
@@ -503,17 +519,75 @@ function ProfileInner() {
                       disabled={addingGoal}
                     />
                   </div>
-                  <Button type="submit" size="sm" disabled={addingGoal}>
-                    {addingGoal ? 'Đang thêm...' : 'Thêm mục tiêu'}
-                  </Button>
+                  <div className="flex gap-2 pt-1">
+                    <Button type="submit" size="sm" disabled={addingGoal}>
+                      {addingGoal ? 'Đang thêm...' : 'Thêm mục tiêu'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowGoalForm(false)}
+                      disabled={addingGoal}
+                    >
+                      Hủy
+                    </Button>
+                  </div>
                 </form>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+        </section>
+
+        {/* ACCOUNT actions — iOS-settings-style rows */}
+        <section className="space-y-4">
+          <h2 className="text-lg font-semibold tracking-tight">Tài khoản</h2>
+          <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <Link
+              href="/change-password"
+              className="flex items-center justify-between px-5 py-4 hover:bg-accent transition-colors"
+            >
+              <span className="flex items-center gap-3">
+                <KeyRound className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Đổi mật khẩu</span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </Link>
+            <Divider />
+            <button
+              type="button"
+              onClick={logout}
+              className="w-full flex items-center px-5 py-4 hover:bg-accent transition-colors text-left"
+            >
+              <span className="flex items-center gap-3">
+                <LogOut className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium text-destructive">
+                  Đăng xuất
+                </span>
+              </span>
+            </button>
+          </div>
         </section>
       </main>
     </div>
   );
+}
+
+// Compact label/value row used in the read-only info section.
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 px-5 py-4">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className="text-sm font-medium text-right truncate max-w-[60%]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// 1px hairline divider used between rows inside a card.
+function Divider() {
+  return <div className="h-px bg-border" />;
 }
 
 export default function ProfilePage() {
