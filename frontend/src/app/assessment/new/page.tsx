@@ -17,6 +17,9 @@ function NewAssessmentInner() {
   const router = useRouter();
   const params = useSearchParams();
   const initialSubjectId = params.get('subjectId') ?? '';
+  // Optional: pre-scope the test to a single topic (e.g. IELTS Reading only).
+  // When set, the topic select is hidden — the choice came from the prior screen.
+  const presetTopicId = params.get('topicId') ?? '';
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
@@ -36,6 +39,13 @@ function NewAssessmentInner() {
       .catch((err) => setError(getErrorMessage(err)));
   }, [subjectId]);
 
+  // Name of the pre-selected topic to show in the header (purely informational).
+  const presetTopicName = presetTopicId
+    ? subjects
+        .find((s) => s._id === subjectId)
+        ?.topics.find((t) => t._id === presetTopicId)?.name
+    : null;
+
   const handleStart = async () => {
     if (!subjectId) return;
     setError(null);
@@ -44,6 +54,7 @@ function NewAssessmentInner() {
     try {
       const assessment = await assessmentApi.create({
         subjectId,
+        ...(presetTopicId ? { topicIds: [presetTopicId] } : {}),
         difficulty,
         questionCount,
       });
@@ -66,24 +77,37 @@ function NewAssessmentInner() {
       <main className="mx-auto max-w-2xl px-4 py-6">
         <Card>
           <CardHeader>
-            <CardTitle>Bắt đầu bài đánh giá đầu vào</CardTitle>
+            <CardTitle>
+              {presetTopicName
+                ? `Bài test: ${presetTopicName}`
+                : 'Bắt đầu bài đánh giá đầu vào'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Môn học</label>
-              <select
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
-                disabled={submitting}
-              >
-                {subjects.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {presetTopicId ? (
+              <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+                <div className="text-xs text-muted-foreground">Kỹ năng / chủ đề</div>
+                <div className="font-medium">
+                  {presetTopicName ?? 'Đang tải...'}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-sm font-medium">Môn học</label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                  disabled={submitting}
+                >
+                  {subjects.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="mb-1 block text-sm font-medium">Độ khó</label>
