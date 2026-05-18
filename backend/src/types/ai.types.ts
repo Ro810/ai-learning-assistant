@@ -32,7 +32,8 @@ export interface ILearningPathPromptData {
 
 export interface IGenerateLearningPathInput {
   subjectId: string;
-  assessmentId: string;
+  // Cho phép 1-3 bài đánh giá để tổng hợp điểm mạnh/yếu.
+  assessmentIds: string[];
   targetDate: string;
   targetLevel: 'basic' | 'intermediate' | 'advanced';
   weeklyStudyHours: number;

@@ -3,7 +3,7 @@
 // Learning path list: view existing paths + form to create a new one.
 // Requires a completed assessment to create a path.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -43,11 +43,25 @@ function LearningPathListInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
-  const [formAssessmentId, setFormAssessmentId] = useState('');
+  // Form state — chọn môn trước, rồi tick 1-3 bài đánh giá thuộc môn đó.
+  const [formSubjectId, setFormSubjectId] = useState('');
+  const [formAssessmentIds, setFormAssessmentIds] = useState<string[]>([]);
   const [formLevel, setFormLevel] = useState<'basic' | 'intermediate' | 'advanced'>('basic');
   const [formDate, setFormDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Đếm giây trôi qua kể từ lúc bấm "Tạo lộ trình" để user biết AI vẫn đang chạy.
+  const [elapsed, setElapsed] = useState(0);
+  const MAX_ASSESSMENTS = 3;
+
+  useEffect(() => {
+    if (!submitting) return;
+    setElapsed(0);
+    const start = Date.now();
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [submitting]);
 
   useEffect(() => {
     let active = true;
@@ -62,7 +76,8 @@ function LearningPathListInner() {
         setSubjects(subjectsData);
         setPaths(pathsData);
         setCompletedAssessments(assessData);
-        if (assessData.length > 0) setFormAssessmentId(assessData[0]._id);
+        // Mặc định chọn môn của bài đánh giá mới nhất.
+        if (assessData.length > 0) setFormSubjectId(assessData[0].subjectId);
       } catch (err) {
         if (active) setError(getErrorMessage(err));
       } finally {
@@ -75,14 +90,46 @@ function LearningPathListInner() {
   const subjectName = (id: string) =>
     subjects.find((s) => s._id === id)?.name ?? id.slice(-6);
 
+  // Các môn người dùng có bài đánh giá hoàn thành — dùng để render select.
+  const availableSubjects = useMemo(() => {
+    const ids = new Set(completedAssessments.map((a) => a.subjectId));
+    return subjects.filter((s) => ids.has(s._id));
+  }, [subjects, completedAssessments]);
+
+  // Các bài đánh giá đã hoàn thành thuộc môn đang chọn.
+  const subjectAssessments = useMemo(
+    () => completedAssessments.filter((a) => a.subjectId === formSubjectId),
+    [completedAssessments, formSubjectId],
+  );
+
+  // Reset danh sách bài đã tick khi đổi môn.
+  useEffect(() => {
+    setFormAssessmentIds([]);
+  }, [formSubjectId]);
+
+  const toggleAssessment = (id: string) => {
+    setFormAssessmentIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= MAX_ASSESSMENTS) {
+        toast.error(`Tối đa ${MAX_ASSESSMENTS} bài đánh giá.`);
+        return prev;
+      }
+      return [...prev, id];
+    });
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formAssessmentId) { toast.error('Vui lòng chọn bài đánh giá.'); return; }
+    if (!formSubjectId) { toast.error('Vui lòng chọn môn học.'); return; }
+    if (formAssessmentIds.length === 0) {
+      toast.error('Chọn từ 1 đến 3 bài đánh giá.');
+      return;
+    }
     if (!formDate) { toast.error('Vui lòng chọn ngày mục tiêu.'); return; }
     setSubmitting(true);
     try {
       const path = await learningPathApi.create({
-        assessmentId: formAssessmentId,
+        assessmentIds: formAssessmentIds,
         targetLevel: formLevel,
         targetDate: formDate,
       });
@@ -175,20 +222,65 @@ function LearningPathListInner() {
           ) : (
             <form onSubmit={handleCreate} className="space-y-4 max-w-md">
               <div className="space-y-1">
-                <label className="text-sm font-medium">Bài đánh giá</label>
+                <label className="text-sm font-medium">Môn học</label>
                 <select
-                  value={formAssessmentId}
-                  onChange={(e) => setFormAssessmentId(e.target.value)}
+                  value={formSubjectId}
+                  onChange={(e) => setFormSubjectId(e.target.value)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   disabled={loading || submitting}
                 >
-                  {completedAssessments.map((a) => (
-                    <option key={a._id} value={a._id}>
-                      {subjectName(a.subjectId)} — {formatDate(a.completedAt ?? a.createdAt)}
-                      {a.results ? ` (${a.results.score}/100)` : ''}
+                  <option value="">-- Chọn môn --</option>
+                  {availableSubjects.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium">
+                  Bài đánh giá (chọn 1-3 bài)
+                </label>
+                {!formSubjectId ? (
+                  <p className="text-xs text-muted-foreground">
+                    Chọn môn học để xem danh sách bài đánh giá.
+                  </p>
+                ) : subjectAssessments.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Môn này chưa có bài đánh giá hoàn thành.
+                  </p>
+                ) : (
+                  <div className="space-y-1 rounded-md border border-input p-2 max-h-48 overflow-y-auto">
+                    {subjectAssessments.map((a) => {
+                      const checked = formAssessmentIds.includes(a._id);
+                      const disabled =
+                        !checked && formAssessmentIds.length >= MAX_ASSESSMENTS;
+                      return (
+                        <label
+                          key={a._id}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent ${
+                            disabled ? 'opacity-50' : 'cursor-pointer'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={disabled || submitting}
+                            onChange={() => toggleAssessment(a._id)}
+                          />
+                          <span className="flex-1 truncate">
+                            {formatDate(a.completedAt ?? a.createdAt)}
+                            {a.results ? ` · ${a.results.score}/100` : ''}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Đã chọn {formAssessmentIds.length}/{MAX_ASSESSMENTS}
+                </p>
               </div>
 
               <div className="space-y-1">
@@ -217,9 +309,16 @@ function LearningPathListInner() {
                 />
               </div>
 
-              <Button type="submit" disabled={submitting || loading}>
-                {submitting ? 'Đang tạo...' : 'Tạo lộ trình'}
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button type="submit" disabled={submitting || loading}>
+                  {submitting ? 'Đang tạo lộ trình...' : 'Tạo lộ trình'}
+                </Button>
+                {submitting && (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {elapsed}s
+                  </span>
+                )}
+              </div>
             </form>
           )}
         </section>

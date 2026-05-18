@@ -116,7 +116,8 @@ export const learningPathApi = {
     return unwrap(res.data).learningPath;
   },
   create: async (input: {
-    assessmentId: string;
+    // Cho phép 1-3 bài đánh giá cùng môn — backend sẽ tổng hợp điểm mạnh/yếu.
+    assessmentIds: string[];
     targetLevel: 'basic' | 'intermediate' | 'advanced';
     targetDate: string;
   }) => {

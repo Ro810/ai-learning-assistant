@@ -124,8 +124,15 @@ function DashboardInner() {
     };
   }, []);
 
-  const subjectName = (id: string) =>
-    subjects.find((s) => s._id === id)?.name ?? id.slice(-6);
+  // Phòng trường hợp backend trả populate object thay vì string (lỗi cũ) —
+  // chuẩn hoá về string trước khi tra cứu/slice để không crash UI.
+  const subjectName = (raw: unknown) => {
+    const id =
+      typeof raw === 'string'
+        ? raw
+        : (raw as { _id?: string } | null)?._id ?? String(raw ?? '');
+    return subjects.find((s) => s._id === id)?.name ?? id.slice(-6);
+  };
 
   // Derived stats. Defensive against undefined arrays in case the backend
   // returns a payload missing the expected list field.
