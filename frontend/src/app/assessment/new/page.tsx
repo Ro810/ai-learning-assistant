@@ -20,6 +20,7 @@ function NewAssessmentInner() {
   // Optional: pre-scope the test to a single topic (e.g. IELTS Reading only).
   // When set, the topic select is hidden — the choice came from the prior screen.
   const presetTopicId = params.get('topicId') ?? '';
+  const presetTopicName = params.get('topicName') ?? '';
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
@@ -38,13 +39,6 @@ function NewAssessmentInner() {
       })
       .catch((err) => setError(getErrorMessage(err)));
   }, [subjectId]);
-
-  // Name of the pre-selected topic to show in the header (purely informational).
-  const presetTopicName = presetTopicId
-    ? subjects
-        .find((s) => s._id === subjectId)
-        ?.topics.find((t) => t._id === presetTopicId)?.name
-    : null;
 
   const handleStart = async () => {
     if (!subjectId) return;

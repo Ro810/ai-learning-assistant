@@ -56,6 +56,9 @@ function SubjectDetailInner({ id }: { id: string }) {
     const params = new URLSearchParams({
       subjectId: id,
       topicId: topic._id,
+      // Carry the name in the URL so /assessment/new can render it without
+      // refetching the subject (subjectApi.list omits the topics array).
+      topicName: topic.name,
     });
     router.push(`/assessment/new?${params.toString()}`);
   };
