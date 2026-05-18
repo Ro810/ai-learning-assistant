@@ -5,6 +5,7 @@ import { PracticeSession } from '../models/practice-session.model';
 import { Question } from '../models/question.model';
 import { User } from '../models/user.model';
 import { Subject } from '../models/subject.model';
+import { Assessment } from '../models/assessment.model';
 import { selectQuestions } from '../services/practice-question-selector.service';
 import {
   applyAdaptive,
@@ -391,47 +392,124 @@ export const getSessionById = async (
   }
 };
 
-// Enrich the user's stored weak-topic ids with topic names from Subject.topics.
+// Aggregate per-topic stats from completed practice sessions + assessments,
+// enrich with topic + subject names. Returns every topic the user has
+// touched (caller filters by rate < 0.5 on the client side).
 export const getWeakTopics = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const userId = req.user!.userId;
-    const user = await User.findById(userId).select('currentLevel').lean();
-    const weakIds = (user?.currentLevel?.weakTopics ?? []) as mongoose.Types.ObjectId[];
+    const userId = new mongoose.Types.ObjectId(req.user!.userId);
 
-    if (weakIds.length === 0) {
-      return res.json({ success: true, data: { weakTopics: [] } });
+    // 1. Practice sessions: only completed; need question.topicIds for each
+    //    answered item -> bulk-load all referenced questions in one query.
+    const sessions = await PracticeSession.find({
+      userId,
+      status: 'completed',
+    })
+      .select('questions')
+      .lean();
+
+    const questionIds = new Set<string>();
+    for (const s of sessions) {
+      for (const q of s.questions ?? []) {
+        if (q.questionId) questionIds.add(q.questionId.toString());
+      }
     }
 
-    const subjects = await Subject.find({ 'topics._id': { $in: weakIds } })
+    const questions = questionIds.size
+      ? await Question.find({ _id: { $in: Array.from(questionIds) } })
+          .select('topicIds')
+          .lean()
+      : [];
+
+    const qIdToTopics = new Map<string, mongoose.Types.ObjectId[]>();
+    for (const q of questions) {
+      qIdToTopics.set(q._id.toString(), q.topicIds ?? []);
+    }
+
+    // 2. Assessments: skillAnalysis already has { topicId, correct, total }
+    //    per topic — just sum it in.
+    const assessments = await Assessment.find({
+      userId,
+      status: 'completed',
+    })
+      .select('results.skillAnalysis')
+      .lean();
+
+    // 3. Combine into one bucket per topicId.
+    type Bucket = { topicId: mongoose.Types.ObjectId; correct: number; total: number };
+    const buckets = new Map<string, Bucket>();
+
+    const bump = (topicId: mongoose.Types.ObjectId, isCorrect: boolean) => {
+      const key = topicId.toString();
+      const b = buckets.get(key) ?? { topicId, correct: 0, total: 0 };
+      b.total += 1;
+      if (isCorrect) b.correct += 1;
+      buckets.set(key, b);
+    };
+
+    for (const s of sessions) {
+      for (const q of s.questions ?? []) {
+        if (q.isCorrect === null || q.isCorrect === undefined) continue;
+        const topics = qIdToTopics.get(q.questionId?.toString?.() ?? '') ?? [];
+        if (topics.length === 0) continue;
+        bump(topics[0], !!q.isCorrect); // primary topic only — same convention as grader
+      }
+    }
+
+    for (const a of assessments) {
+      for (const sa of a.results?.skillAnalysis ?? []) {
+        const key = sa.topicId.toString();
+        const b = buckets.get(key) ?? { topicId: sa.topicId, correct: 0, total: 0 };
+        b.correct += sa.correct ?? 0;
+        b.total += sa.total ?? 0;
+        buckets.set(key, b);
+      }
+    }
+
+    if (buckets.size === 0) {
+      return res.json({ success: true, data: { items: [] } });
+    }
+
+    // 4. Enrich with topic + subject names in a single Subject query.
+    const topicIds = Array.from(buckets.values()).map((b) => b.topicId);
+    const subjects = await Subject.find({ 'topics._id': { $in: topicIds } })
       .select('name code topics')
       .lean();
 
-    const idToName = new Map<string, { topicName: string; subjectName: string; subjectCode: string }>();
+    const idToMeta = new Map<
+      string,
+      { topicName: string; subjectId: mongoose.Types.ObjectId; subjectName: string }
+    >();
     for (const s of subjects) {
       for (const t of s.topics ?? []) {
-        idToName.set(t._id.toString(), {
+        idToMeta.set(t._id.toString(), {
           topicName: t.name,
+          subjectId: s._id,
           subjectName: s.name,
-          subjectCode: s.code,
         });
       }
     }
 
-    const weakTopics = weakIds.map((tid) => {
-      const meta = idToName.get(tid.toString());
-      return {
-        topicId: tid,
-        topicName: meta?.topicName ?? null,
-        subjectName: meta?.subjectName ?? null,
-        subjectCode: meta?.subjectCode ?? null,
-      };
-    });
+    const items = Array.from(buckets.values())
+      .filter((b) => b.total > 0)
+      .map((b) => {
+        const meta = idToMeta.get(b.topicId.toString());
+        return {
+          topicId: b.topicId,
+          topicName: meta?.topicName ?? null,
+          subjectId: meta?.subjectId ?? null,
+          subjectName: meta?.subjectName ?? null,
+          correct: b.correct,
+          total: b.total,
+          rate: b.correct / b.total,
+        };
+      });
 
-    res.json({ success: true, data: { weakTopics } });
+    res.json({ success: true, data: { items } });
   } catch (error) {
     next(error);
   }

@@ -132,7 +132,8 @@ function DashboardInner() {
     return {
       completed: completed.length,
       avgScore,
-      weakTopics: (weakTopics ?? []).length,
+      // Count only topics with rate < 50% — matches /weakness page filter.
+      weakTopics: (weakTopics ?? []).filter((t) => t.rate < 0.5).length,
     };
   }, [assessments, weakTopics]);
 
@@ -630,7 +631,7 @@ function StatTile({
 function SubjectCard({ subject }: { subject: Subject }) {
   return (
     <Link
-      href={`/assessment/new?subjectId=${subject._id}`}
+      href={`/subjects/${subject._id}`}
       className="group rounded-2xl border border-border bg-card p-5 transition-all hover:border-foreground/30 hover:shadow-sm flex flex-col gap-3"
     >
       <div className="flex items-center justify-between">
