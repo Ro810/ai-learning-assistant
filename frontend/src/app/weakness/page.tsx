@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft } from 'lucide-react';
 import { practiceApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import type { WeakTopicItem } from '@/lib/types';
@@ -48,6 +49,18 @@ function WeaknessInner() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/dashboard')}
+            className="-ml-2 text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Quay lại Dashboard
+          </Button>
+        </div>
+
         <section>
           <h1 className="text-2xl font-semibold">Điểm yếu của bạn</h1>
           <p className="text-sm text-muted-foreground">

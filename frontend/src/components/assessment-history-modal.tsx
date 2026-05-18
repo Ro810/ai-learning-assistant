@@ -53,8 +53,16 @@ export function AssessmentHistoryModal({
   }, [open, onClose]);
 
   const filtered = useMemo(() => {
-    if (subjectFilter === 'all') return assessments;
-    return assessments.filter((a) => a.subjectId === subjectFilter);
+    const base =
+      subjectFilter === 'all'
+        ? assessments
+        : assessments.filter((a) => a.subjectId === subjectFilter);
+    // Sắp xếp mới nhất lên đầu để 3-4 bài hiển thị đầu tiên là gần nhất.
+    return [...base].sort((a, b) => {
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      return tb - ta;
+    });
   }, [assessments, subjectFilter]);
 
   const subjectName = (id: string) =>
@@ -120,8 +128,8 @@ export function AssessmentHistoryModal({
           </select>
         </div>
 
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
+        {/* List — giới hạn chiều cao ~4 bài, phần còn lại kéo thanh cuộn để xem */}
+        <div className="overflow-y-auto max-h-[340px]">
           {filtered.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">
               Không có bài nào khớp với bộ lọc.
