@@ -24,6 +24,15 @@ const statusLabels: Record<
 const formatDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('vi-VN') : '—';
 
+// Hiển thị trình độ NGƯỜI DÙNG CHỌN khi bắt đầu bài (theo difficulty 1/2/3).
+const difficultyLabels: Record<number, string> = {
+  1: 'Cơ bản',
+  2: 'Trung bình',
+  3: 'Nâng cao',
+};
+const formatDifficulty = (d?: number | null) =>
+  d != null ? (difficultyLabels[d] ?? null) : null;
+
 export function AssessmentHistoryModal({
   open,
   onClose,
@@ -164,8 +173,8 @@ export function AssessmentHistoryModal({
                             <span className="ml-1">
                               ({a.results.correctCount}/
                               {a.results.totalQuestions} đúng
-                              {a.results.recommendedLevel &&
-                                ` · ${a.results.recommendedLevel}`}
+                              {formatDifficulty(a.difficulty) &&
+                                ` · ${formatDifficulty(a.difficulty)}`}
                               )
                             </span>
                           </>

@@ -69,6 +69,12 @@ const AssessmentSchema = new Schema<IAssessmentDocument>(
       enum: ['in_progress', 'completed', 'abandoned'],
       default: 'in_progress',
     },
+    // Mức độ khó người dùng chọn khi bắt đầu (1=Cơ bản, 2=Trung bình, 3=Nâng cao).
+    // Không set default — bài cũ chưa có field này sẽ là undefined và UI ẩn cột trình độ.
+    difficulty: {
+      type: Number,
+      enum: [1, 2, 3],
+    },
     questions: [AssessmentQuestionSchema],
     results: {
       score: Number,

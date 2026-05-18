@@ -128,6 +128,7 @@ export const createAssessment = async (
       userId: userObjId,
       subjectId: subjectObjId,
       status: 'in_progress',
+      difficulty: difficulty ?? 2,
       questions: questions.map((q: any) => ({
         questionId: q._id,
         questionSnapshot: q.toObject ? q.toObject() : q,

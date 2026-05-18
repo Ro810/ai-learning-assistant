@@ -90,6 +90,7 @@ export interface Assessment {
   userId: string;
   subjectId: string;
   status: 'in_progress' | 'completed' | 'abandoned';
+  difficulty?: 1 | 2 | 3;
   questions: AssessmentQuestion[];
   results?: AssessmentResults;
   completedAt?: string | null;
@@ -100,6 +101,7 @@ export interface AssessmentSummary {
   _id: string;
   subjectId: string;
   status: 'in_progress' | 'completed' | 'abandoned';
+  difficulty?: 1 | 2 | 3;
   results?: AssessmentResults;
   createdAt: string;
   completedAt?: string | null;

@@ -63,6 +63,15 @@ function formatDate(iso?: string | null) {
   return new Date(iso).toLocaleDateString('vi-VN');
 }
 
+// Hiển thị trình độ NGƯỜI DÙNG CHỌN khi bắt đầu bài (theo difficulty 1/2/3).
+const difficultyLabels: Record<number, string> = {
+  1: 'Cơ bản',
+  2: 'Trung bình',
+  3: 'Nâng cao',
+};
+const formatDifficulty = (d?: number | null) =>
+  d != null ? (difficultyLabels[d] ?? null) : null;
+
 // "Chào buổi sáng/chiều/tối" based on user's local clock.
 function greetingByHour(): string {
   const h = new Date().getHours();
@@ -230,7 +239,7 @@ function DashboardInner() {
         <section>
           <SectionHeader
             title="Bắt đầu một bài đánh giá"
-            description="Chọn môn học để AI sinh đề kiểm tra đầu vào."
+            description="Chọn 1 môn học để kiểm tra đầu vào."
           />
           {loading ? (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -302,8 +311,8 @@ function DashboardInner() {
                             </span>
                             <span className="ml-1">
                               ({a.results.correctCount}/{a.results.totalQuestions} đúng
-                              {a.results.recommendedLevel &&
-                                ` · ${a.results.recommendedLevel}`}
+                              {formatDifficulty(a.difficulty) &&
+                                ` · ${formatDifficulty(a.difficulty)}`}
                               )
                             </span>
                           </>
@@ -337,7 +346,7 @@ function DashboardInner() {
           <div>
             <SectionHeader
               title="Lộ trình học"
-              description="Kế hoạch theo tuần do AI đề xuất."
+              description="Kế hoạch học theo tuần."
               icon={<Target className="h-4 w-4" />}
             />
             {loading ? (

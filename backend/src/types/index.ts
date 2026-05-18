@@ -106,6 +106,7 @@ export interface IAssessment {
   userId: Types.ObjectId;
   subjectId: Types.ObjectId;
   status: 'in_progress' | 'completed' | 'abandoned';
+  difficulty?: 1 | 2 | 3;
   questions: IAssessmentQuestion[];
   results?: {
     score: number;

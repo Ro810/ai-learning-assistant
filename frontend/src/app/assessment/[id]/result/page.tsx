@@ -73,8 +73,7 @@ function ResultInner({ id }: { id: string }) {
     );
   }
 
-  const { score, correctCount, totalQuestions, skillAnalysis, recommendedLevel } =
-    assessment.results;
+  const { score, correctCount, totalQuestions, skillAnalysis } = assessment.results;
 
   const topicName = (topicId: string) =>
     subject?.topics.find((t) => t._id === topicId)?.name ?? topicId.slice(-6);
@@ -98,10 +97,6 @@ function ResultInner({ id }: { id: string }) {
                 <p className="text-2xl font-semibold">
                   {correctCount}/{totalQuestions}
                 </p>
-              </div>
-              <div>
-                <p className="text-xs uppercase text-muted-foreground">Trình độ đề xuất</p>
-                <Badge className="text-base">{recommendedLevel}</Badge>
               </div>
             </div>
             <Separator />
