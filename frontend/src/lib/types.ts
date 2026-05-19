@@ -215,6 +215,7 @@ export interface TestPack {
   name: string;
   order: number;
   totalQuestions: number;
+  durationMinutes?: number;
   description?: string;
 }
 

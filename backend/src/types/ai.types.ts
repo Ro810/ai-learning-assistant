@@ -12,6 +12,8 @@ export interface IGenerateQuestionsInput {
   questionType: 'multiple_choice';
   // Ngôn ngữ nội dung câu hỏi. 'en' cho subjects tiếng Anh, 'vi' (mặc định) cho còn lại.
   language?: 'vi' | 'en';
+  // Nếu set, Question save kèm packId + generatedBy='seed' để hành xử như pre-seed pack.
+  packId?: string;
 }
 
 export interface IQuestionPromptData {

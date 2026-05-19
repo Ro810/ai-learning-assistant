@@ -14,8 +14,8 @@ import { packApi, assessmentApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import type { PackDetail } from '@/lib/types';
 
-const TAGS = ['Tiếng Anh THPT', 'Trắc nghiệm'];
-const ESTIMATED_MINUTES = 60;
+// Tag pills + duration giờ lấy từ pack/subject — không hardcode môn.
+const FALLBACK_MINUTES = 60;
 type TabKey = 'info' | 'answers';
 
 function PackDetailInner({ subjectId, packId }: { subjectId: string; packId: string }) {
@@ -89,7 +89,7 @@ function PackDetailInner({ subjectId, packId }: { subjectId: string; packId: str
         ) : detail ? (
           <section className="space-y-4">
             <div className="flex flex-wrap gap-1.5">
-              {TAGS.map((tag) => (
+              {[detail.subject.name, 'Trắc nghiệm'].map((tag) => (
                 <span
                   key={tag}
                   className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-foreground/80"
@@ -115,7 +115,7 @@ function PackDetailInner({ subjectId, packId }: { subjectId: string; packId: str
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
                     <Clock className="h-4 w-4" />
-                    Thời gian làm bài: {ESTIMATED_MINUTES} phút
+                    Thời gian làm bài: {detail.pack.durationMinutes ?? FALLBACK_MINUTES} phút
                   </span>
                   <span className="text-border">|</span>
                   <span className="inline-flex items-center gap-1.5">
@@ -125,8 +125,7 @@ function PackDetailInner({ subjectId, packId }: { subjectId: string; packId: str
                 </div>
 
                 <p className="text-sm italic text-destructive">
-                  Chú ý: đề gồm {detail.pack.totalQuestions} câu trắc nghiệm trộn đủ 6
-                  phần (Ngữ âm, Ngữ pháp, Từ vựng, Đọc hiểu, Tìm lỗi sai, Viết lại câu).
+                  Chú ý: đề gồm {detail.pack.totalQuestions} câu trắc nghiệm.
                   Mỗi câu chọn 1 đáp án — không quay lại sửa sau khi đã nộp.
                 </p>
 

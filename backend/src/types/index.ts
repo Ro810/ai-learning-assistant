@@ -100,7 +100,7 @@ export interface IQuestion {
   createdAt: Date;
 }
 
-// TestPack — 1 đề thi pre-seed thuộc 1 subject (vd: English THPT Đề 1).
+// TestPack — 1 đề thi pre-seed thuộc 1 subject (vd: English THPT Đề 1, Math THPT Đề 1).
 export interface ITestPack {
   _id: Types.ObjectId;
   subjectId: Types.ObjectId;
@@ -108,6 +108,8 @@ export interface ITestPack {
   order: number;
   description?: string;
   totalQuestions: number;
+  // Thời gian khuyến nghị làm bài (phút). English THPT 60, Math THPT 90.
+  durationMinutes?: number;
   createdAt: Date;
   updatedAt: Date;
 }

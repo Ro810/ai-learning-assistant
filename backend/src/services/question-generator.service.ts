@@ -154,11 +154,15 @@ export class QuestionGeneratorService {
       throw new Error('AI response parsed but is not a non-empty array');
     }
 
+    const packObjId = input.packId ? new mongoose.Types.ObjectId(input.packId) : null;
+
     // Save questions to database
     const savedQuestions = await Promise.all(
       questionsData.map(async (q) => {
         const question = new Question({
           topicIds,
+          // Khi seed pack: gán packId + đánh dấu 'seed' để tách rõ với câu AI on-demand.
+          packId: packObjId,
           difficulty: input.difficulty,
           type: input.questionType,
           content: {
@@ -168,7 +172,7 @@ export class QuestionGeneratorService {
             explanation: q.explanation,
           },
           metadata: {
-            generatedBy: 'gemini',
+            generatedBy: packObjId ? 'seed' : 'gemini',
             generationPrompt: prompt,
             verified: false,
           },

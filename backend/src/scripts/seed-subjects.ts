@@ -33,8 +33,19 @@ const CATALOG: CatalogEntry[] = [
   {
     name: 'Toán THPT',
     code: 'math-thpt',
-    description: 'Chương trình Toán phổ thông trung học, hỗ trợ ôn thi tốt nghiệp và đại học.',
-    topics: t(['Đại số', 'Hình học', 'Giải tích', 'Lượng giác', 'Xác suất - Thống kê']),
+    description: 'Luyện đề Toán tốt nghiệp THPT — 10 chương trọng tâm lớp 11 và 12.',
+    topics: t([
+      'Khảo sát hàm số',
+      'Mũ - Logarit',
+      'Nguyên hàm - Tích phân',
+      'Số phức',
+      'Khối đa diện - Thể tích',
+      'Mặt cầu - Mặt trụ - Mặt nón',
+      'Hình học Oxyz',
+      'Cấp số cộng - Cấp số nhân',
+      'Tổ hợp - Xác suất',
+      'Lượng giác',
+    ]),
   },
   {
     name: 'Tiếng Anh THPT',

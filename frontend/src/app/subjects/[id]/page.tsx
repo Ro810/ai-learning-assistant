@@ -90,7 +90,7 @@ function SubjectDetailInner({ id }: { id: string }) {
       .then(async (data) => {
         if (!active) return;
         setSubject(data);
-        if (data.code === 'english-thpt') {
+        if (data.code === 'english-thpt' || data.code === 'math-thpt') {
           try {
             const packsData = await packApi.listBySubject(id);
             if (active) setPacks(packsData);
@@ -113,9 +113,11 @@ function SubjectDetailInner({ id }: { id: string }) {
     router.push(`/assessment/new?${params.toString()}`);
   };
 
-  const isPackMode = subject?.code === 'english-thpt';
+  const isPackMode = subject?.code === 'english-thpt' || subject?.code === 'math-thpt';
   const isStudyMode =
     subject?.code === 'python-programming' || subject?.code === 'english-communication';
+  // Duration mặc định + tags theo môn — nếu pack đã có durationMinutes thì ưu tiên cái đó.
+  const packFallbackMinutes = subject?.code === 'math-thpt' ? 90 : 60;
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,7 +168,12 @@ function SubjectDetailInner({ id }: { id: string }) {
             </section>
 
             {isPackMode ? (
-              <PackGrid packs={packs ?? []} subjectId={id} />
+              <PackGrid
+                packs={packs ?? []}
+                subjectId={id}
+                tags={[subject.name, 'Trắc nghiệm']}
+                fallbackMinutes={packFallbackMinutes}
+              />
             ) : isStudyMode ? (
               <TopicStudyView subject={subject} subjectId={id} />
             ) : (

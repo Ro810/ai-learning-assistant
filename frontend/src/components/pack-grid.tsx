@@ -1,25 +1,29 @@
 'use client';
 
 // Study4-style pack cards: title + stats (time/questions) + tags + Chi tiết button.
-// 4 cols ở desktop, 2 cols tablet, 1 col mobile. Đề Tiếng Anh THPT mặc định 60 phút.
+// 4 cols desktop, 2 cols tablet, 1 col mobile.
+// Dùng cho cả Tiếng Anh THPT (60 phút) và Toán THPT (90 phút) — duration lấy từ pack.
 
 import Link from 'next/link';
-import { Clock, FileText, Layers } from 'lucide-react';
+import { Clock, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { TestPack } from '@/lib/types';
 
 interface PackGridProps {
   packs: TestPack[];
   subjectId: string;
+  // Tag pills hiển thị (vd: ["Tiếng Anh THPT", "Trắc nghiệm"]).
+  tags?: string[];
+  // Fallback duration nếu pack chưa lưu durationMinutes.
+  fallbackMinutes?: number;
 }
 
-// Tag pills hiển thị cho mỗi đề. Static cho MVP — sau này có thể đẩy lên DB.
-const TAGS = ['Tiếng Anh THPT', 'Trắc nghiệm'];
-
-// Time estimate khớp với đề thi tốt nghiệp THPT môn Anh thật (60 phút).
-const ESTIMATED_MINUTES = 60;
-
-export function PackGrid({ packs, subjectId }: PackGridProps) {
+export function PackGrid({
+  packs,
+  subjectId,
+  tags = [],
+  fallbackMinutes = 60,
+}: PackGridProps) {
   if (packs.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border py-10 text-center">
@@ -41,7 +45,7 @@ export function PackGrid({ packs, subjectId }: PackGridProps) {
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
-              {ESTIMATED_MINUTES} phút
+              {pack.durationMinutes ?? fallbackMinutes} phút
             </span>
             <span className="inline-flex items-center gap-1">
               <FileText className="h-3.5 w-3.5" />
@@ -49,21 +53,18 @@ export function PackGrid({ packs, subjectId }: PackGridProps) {
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Layers className="h-3.5 w-3.5" />
-            <span>6 phần thi</span>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {TAGS.map((tag) => (
-              <span
-                key={tag}
-                className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary"
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs text-primary"
+                >
+                  #{tag}
+                </span>
+              ))}
+            </div>
+          )}
 
           <Button
             type="button"

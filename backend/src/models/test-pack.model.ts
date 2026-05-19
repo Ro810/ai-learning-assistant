@@ -33,6 +33,10 @@ const TestPackSchema = new Schema<ITestPackDocument>(
       required: true,
       default: 0,
     },
+    durationMinutes: {
+      type: Number,
+      default: 60,
+    },
   },
   { timestamps: true }
 );
