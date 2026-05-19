@@ -7,7 +7,7 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -82,6 +82,8 @@ function SubjectDetailInner({ id }: { id: string }) {
   const [packs, setPacks] = useState<TestPack[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -118,6 +120,21 @@ function SubjectDetailInner({ id }: { id: string }) {
     subject?.code === 'python-programming' || subject?.code === 'english-communication';
   // Duration mặc định + tags theo môn — nếu pack đã có durationMinutes thì ưu tiên cái đó.
   const packFallbackMinutes = subject?.code === 'math-thpt' ? 90 : 60;
+  // Chỉ math-thpt hỗ trợ sinh đề mới động (đồng bộ với GENERATABLE_SUBJECTS ở backend).
+  const canGenerateMore = subject?.code === 'math-thpt';
+
+  const handleGeneratePack = async () => {
+    setGenerateError(null);
+    setGenerating(true);
+    try {
+      const result = await packApi.generateForSubject(id);
+      setPacks((prev) => [...(prev ?? []), result.pack]);
+    } catch (err) {
+      setGenerateError(getErrorMessage(err));
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -168,12 +185,36 @@ function SubjectDetailInner({ id }: { id: string }) {
             </section>
 
             {isPackMode ? (
-              <PackGrid
-                packs={packs ?? []}
-                subjectId={id}
-                tags={[subject.name, 'Trắc nghiệm']}
-                fallbackMinutes={packFallbackMinutes}
-              />
+              <>
+                <PackGrid
+                  packs={packs ?? []}
+                  subjectId={id}
+                  tags={[subject.name, 'Trắc nghiệm']}
+                  fallbackMinutes={packFallbackMinutes}
+                />
+                {canGenerateMore && (
+                  <div className="flex flex-col items-center gap-2 pt-4">
+                    {generateError && (
+                      <p className="text-sm text-destructive">{generateError}</p>
+                    )}
+                    <Button
+                      onClick={handleGeneratePack}
+                      disabled={generating}
+                      variant="outline"
+                      size="lg"
+                      className="gap-2"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      {generating ? 'AI đang sinh đề mới (30-60s)...' : 'Sinh đề mới (AI)'}
+                    </Button>
+                    {generating && (
+                      <p className="text-xs text-muted-foreground">
+                        Đang gọi Gemini sinh 50 câu — vui lòng giữ tab mở.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </>
             ) : isStudyMode ? (
               <TopicStudyView subject={subject} subjectId={id} />
             ) : (

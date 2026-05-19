@@ -8,6 +8,15 @@ import { TestPack } from '../models/test-pack.model';
 import { Question } from '../models/question.model';
 import { Subject } from '../models/subject.model';
 import { Assessment } from '../models/assessment.model';
+import { questionGenerator } from '../services/question-generator.service';
+
+// Cấu hình sinh pack theo từng subject code (chỉ math-thpt cho phép sinh động).
+const GENERATABLE_SUBJECTS: Record<
+  string,
+  { questionsPerTopic: number; durationMinutes: number }
+> = {
+  'math-thpt': { questionsPerTopic: 5, durationMinutes: 90 },
+};
 
 // GET /api/subjects/:id/packs
 export const listPacksBySubject = async (
@@ -110,6 +119,102 @@ export const getPackDetail = async (
         subject: { _id: subject._id, name: subject.name, code: subject.code },
         parts,
         progress,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/subjects/:id/generate-pack
+// Sinh động 1 đề mới cho subject hỗ trợ (vd. math-thpt). Tốn ~30-60s do gọi AI nhiều lần.
+// Tiếp tục dù 1 vài chương fail — pack vẫn tạo, log chương fail.
+export const generatePackForSubject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid subject id' });
+    }
+
+    const subject = await Subject.findById(id).lean();
+    if (!subject) {
+      return res.status(404).json({ success: false, message: 'Subject not found' });
+    }
+
+    const config = GENERATABLE_SUBJECTS[subject.code];
+    if (!config) {
+      return res.status(400).json({
+        success: false,
+        message: 'Môn này chưa hỗ trợ sinh đề mới động.',
+      });
+    }
+
+    if (!subject.topics || subject.topics.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Subject không có chương nào để sinh đề.',
+      });
+    }
+
+    // Order = max hiện tại + 1.
+    const lastPack = await TestPack.findOne({ subjectId: subject._id })
+      .sort({ order: -1 })
+      .select('order')
+      .lean();
+    const newOrder = (lastPack?.order ?? 0) + 1;
+    const totalQuestions = subject.topics.length * config.questionsPerTopic;
+
+    const pack = await TestPack.create({
+      subjectId: subject._id,
+      order: newOrder,
+      name: `Đề ${newOrder}`,
+      description: `Đề luyện ${subject.name} số ${newOrder} (AI sinh động) — ${totalQuestions} câu trắc nghiệm.`,
+      totalQuestions,
+      durationMinutes: config.durationMinutes,
+    });
+
+    let generated = 0;
+    let failed = 0;
+    for (const topic of subject.topics) {
+      try {
+        const q = await questionGenerator.generate({
+          subjectId: subject._id.toString(),
+          topicIds: [topic._id.toString()],
+          difficulty: 2,
+          count: config.questionsPerTopic,
+          questionType: 'multiple_choice',
+          language: 'vi',
+          packId: pack._id.toString(),
+        });
+        generated += q.length;
+      } catch (err: any) {
+        failed += 1;
+        console.error(
+          `[generatePack] topic '${topic.name}' failed:`,
+          err?.message
+        );
+      }
+    }
+
+    if (generated === 0) {
+      // Hoàn toàn fail → xoá pack rỗng tránh rác DB.
+      await TestPack.deleteOne({ _id: pack._id });
+      return res.status(502).json({
+        success: false,
+        message: 'AI sinh đề thất bại hoàn toàn. Vui lòng thử lại.',
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        pack: { ...pack.toObject(), totalQuestions: generated },
+        generated,
+        failed,
       },
     });
   } catch (error) {

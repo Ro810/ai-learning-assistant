@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { listSubjects, getSubject } from '../controllers/subject.controller';
-import { listPacksBySubject } from '../controllers/pack.controller';
+import { listPacksBySubject, generatePackForSubject } from '../controllers/pack.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -64,5 +65,25 @@ router.get('/:id', getSubject);
  *       400: { description: Invalid subject id }
  */
 router.get('/:id/packs', listPacksBySubject);
+
+/**
+ * @swagger
+ * /api/subjects/{id}/generate-pack:
+ *   post:
+ *     summary: Sinh động 1 TestPack mới cho subject (chỉ math-thpt hỗ trợ). Tốn ~30-60s.
+ *     tags: [Subjects, Packs]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       201: { description: Pack mới đã được sinh + lưu DB }
+ *       400: { description: Subject không hỗ trợ sinh động }
+ *       502: { description: AI thất bại hoàn toàn }
+ */
+router.post('/:id/generate-pack', authMiddleware, generatePackForSubject);
 
 export default router;

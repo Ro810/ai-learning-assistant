@@ -70,6 +70,13 @@ export const packApi = {
     const res = await api.get<Envelope<PackDetail>>(`/packs/${packId}`);
     return unwrap(res.data);
   },
+  // Sinh động 1 pack mới cho subject (chỉ math-thpt). Tốn ~30-60s.
+  generateForSubject: async (subjectId: string) => {
+    const res = await api.post<Envelope<{ pack: TestPack; generated: number; failed: number }>>(
+      `/subjects/${subjectId}/generate-pack`,
+    );
+    return unwrap(res.data);
+  },
 };
 
 // ----- Assessments -----
