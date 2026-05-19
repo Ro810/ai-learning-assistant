@@ -33,6 +33,8 @@ export interface AuthResponse {
 export interface Topic {
   _id: string;
   name: string;
+  description?: string;
+  summary?: string;
   parentId?: string | null;
 }
 
@@ -205,6 +207,34 @@ export interface WeakTopicItem {
   rate: number;
   correct: number;
   total: number;
+}
+
+export interface TestPack {
+  _id: string;
+  subjectId: string;
+  name: string;
+  order: number;
+  totalQuestions: number;
+  description?: string;
+}
+
+export interface PackPart {
+  topicId: string;
+  topicName: string;
+  questionCount: number;
+}
+
+export interface PackProgressEntry {
+  topicId: string;
+  assessmentId: string;
+  score: number;
+}
+
+export interface PackDetail {
+  pack: TestPack;
+  subject: { _id: string; name: string; code: string };
+  parts: PackPart[];
+  progress: PackProgressEntry[];
 }
 
 export interface ApiSuccess<T> {

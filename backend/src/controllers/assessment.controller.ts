@@ -3,6 +3,8 @@ import { z } from 'zod';
 import mongoose from 'mongoose';
 import { Assessment } from '../models/assessment.model';
 import { Subject } from '../models/subject.model';
+import { Question } from '../models/question.model';
+import { TestPack } from '../models/test-pack.model';
 import { questionGenerator } from '../services/question-generator.service';
 import {
   gradeAnswers,
@@ -14,7 +16,10 @@ const createAssessmentSchema = z.object({
   subjectId: z.string().min(1),
   topicIds: z.array(z.string()).optional(),
   difficulty: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
-  questionCount: z.number().int().min(1).max(20).optional(),
+  // Tăng max=40 để pack-mode lấy đủ part Đọc hiểu (15 câu) hoặc Ngữ pháp (10 câu).
+  questionCount: z.number().int().min(1).max(40).optional(),
+  // Nếu có packId, bỏ qua AI và load Question từ DB scoped theo pack.
+  packId: z.string().min(1).optional(),
 });
 
 const submitAssessmentSchema = z.object({
@@ -67,22 +72,29 @@ export const createAssessment = async (
       });
     }
 
-    const { subjectId, topicIds, difficulty, questionCount } = parsed.data;
+    const { subjectId, topicIds, difficulty, questionCount, packId } = parsed.data;
 
     if (!mongoose.Types.ObjectId.isValid(subjectId)) {
       return res.status(400).json({ success: false, message: 'Invalid subjectId' });
     }
+    if (packId && !mongoose.Types.ObjectId.isValid(packId)) {
+      return res.status(400).json({ success: false, message: 'Invalid packId' });
+    }
 
     const userObjId = new mongoose.Types.ObjectId(userId);
     const subjectObjId = new mongoose.Types.ObjectId(subjectId);
+    const packObjId = packId ? new mongoose.Types.ObjectId(packId) : null;
 
-    // Block when user already has an in-progress assessment for this subject.
-    // Frontend can use existingId to deep-link or call abandon.
-    const existing = await Assessment.findOne({
+    // Scope in-progress conflict theo pack khi có packId, fallback subject-wide cho AI flow.
+    // Nhờ vậy user có thể đang dở part Đọc hiểu của Đề 1 mà vẫn mở part khác của Đề 2.
+    const conflictFilter: Record<string, unknown> = {
       userId: userObjId,
-      subjectId: subjectObjId,
       status: 'in_progress',
-    }).select('_id');
+    };
+    if (packObjId) conflictFilter.packId = packObjId;
+    else conflictFilter.subjectId = subjectObjId;
+
+    const existing = await Assessment.findOne(conflictFilter).select('_id');
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -107,26 +119,58 @@ export const createAssessment = async (
       }
     }
 
-    let questions;
-    try {
-      questions = await questionGenerator.generate({
-        subjectId,
-        topicIds: resolvedTopicIds,
-        difficulty: difficulty ?? 2,
-        count: questionCount ?? 10,
-        questionType: 'multiple_choice',
-      });
-    } catch (err: any) {
-      return res.status(502).json({
-        success: false,
-        message: 'AI question generation failed',
-        error: err?.message,
-      });
+    let questions: any[];
+    if (packObjId) {
+      // Pack mode — bỏ qua AI, lấy thẳng questions pre-seed của pack.
+      const pack = await TestPack.findOne({ _id: packObjId, subjectId: subjectObjId })
+        .select('_id')
+        .lean();
+      if (!pack) {
+        return res.status(404).json({
+          success: false,
+          message: 'Pack not found for this subject',
+        });
+      }
+
+      const topicObjIds = resolvedTopicIds.map((t) => new mongoose.Types.ObjectId(t));
+      const limit = questionCount ?? 40;
+      const found = await Question.find({
+        packId: packObjId,
+        topicIds: { $in: topicObjIds },
+      })
+        .limit(limit)
+        .lean();
+
+      if (found.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Không tìm thấy câu hỏi cho phần thi này.',
+        });
+      }
+      questions = found;
+    } else {
+      // AI flow nguyên gốc.
+      try {
+        questions = await questionGenerator.generate({
+          subjectId,
+          topicIds: resolvedTopicIds,
+          difficulty: difficulty ?? 2,
+          count: questionCount ?? 10,
+          questionType: 'multiple_choice',
+        });
+      } catch (err: any) {
+        return res.status(502).json({
+          success: false,
+          message: 'AI question generation failed',
+          error: err?.message,
+        });
+      }
     }
 
     const assessment = await Assessment.create({
       userId: userObjId,
       subjectId: subjectObjId,
+      packId: packObjId,
       status: 'in_progress',
       difficulty: difficulty ?? 2,
       questions: questions.map((q: any) => ({

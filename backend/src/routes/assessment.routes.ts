@@ -41,7 +41,10 @@ router.use(authMiddleware);
  *               questionCount:
  *                 type: number
  *                 default: 10
- *                 maximum: 20
+ *                 maximum: 40
+ *               packId:
+ *                 type: string
+ *                 description: If provided, skip AI and pull pre-seeded questions for this pack.
  *     responses:
  *       201: { description: Assessment created with generated questions }
  *       400: { description: Validation error }

@@ -10,6 +10,14 @@ const TopicSchema = new Schema<ITopic>(
       required: [true, 'Topic name is required'],
       trim: true,
     },
+    description: {
+      type: String,
+      default: '',
+    },
+    summary: {
+      type: String,
+      default: '',
+    },
     parentId: {
       type: Schema.Types.ObjectId,
       default: null,
@@ -37,6 +45,13 @@ const SubjectSchema = new Schema<ISubjectDocument>(
       default: '',
     },
     topics: [TopicSchema],
+    // Soft-removal flag: subject vẫn còn trong DB (giữ FK với assessment cũ)
+    // nhưng không xuất hiện ở list public.
+    deprecated: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,

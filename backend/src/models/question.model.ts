@@ -29,6 +29,14 @@ const QuestionSchema = new Schema<IQuestionDocument>(
       required: [true, 'At least one topic is required'],
       validate: [(arr: unknown[]) => arr.length > 0, 'At least one topic is required'],
     },
+    // Optional link to a pre-seeded TestPack (English THPT đề 1-10).
+    // AI-generated questions (legacy) leave this null and remain queryable by topicIds.
+    packId: {
+      type: Schema.Types.ObjectId,
+      ref: 'TestPack',
+      default: null,
+      index: true,
+    },
     difficulty: {
       type: Number,
       required: [true, 'Difficulty is required'],
@@ -59,7 +67,7 @@ const QuestionSchema = new Schema<IQuestionDocument>(
     metadata: {
       generatedBy: {
         type: String,
-        enum: ['gemini'],
+        enum: ['gemini', 'seed'],
         required: true,
       },
       generationPrompt: {
@@ -86,5 +94,7 @@ QuestionSchema.index({ topicIds: 1, difficulty: 1 });
 QuestionSchema.index({ difficulty: 1 });
 QuestionSchema.index({ usageCount: -1 });
 QuestionSchema.index({ 'content.questionText': 'text' });
+// Compound index for pack-scoped queries: lấy câu của 1 pack theo topic.
+QuestionSchema.index({ packId: 1, topicIds: 1 });
 
 export const Question = mongoose.model<IQuestionDocument>('Question', QuestionSchema);

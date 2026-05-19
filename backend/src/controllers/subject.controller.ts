@@ -13,7 +13,10 @@ export const listSubjects = async (
   try {
     const withTopics = req.query.withTopics === 'true';
 
-    const subjects = await Subject.find({}).sort({ name: 1 }).lean();
+    // Ẩn các môn đã deprecated (vd: ielts cũ) khỏi catalog UI.
+    const subjects = await Subject.find({ deprecated: { $ne: true } })
+      .sort({ name: 1 })
+      .lean();
 
     const data = subjects.map((s) => {
       const base = {

@@ -9,9 +9,11 @@ import type {
   AuthResponse,
   LearningPath,
   LearningPathSummary,
+  PackDetail,
   PracticeSession,
   PracticeSessionSummary,
   Subject,
+  TestPack,
   User,
   WeakTopicItem,
 } from './types';
@@ -57,6 +59,19 @@ export const subjectApi = {
   },
 };
 
+// ----- Packs -----
+
+export const packApi = {
+  listBySubject: async (subjectId: string) => {
+    const res = await api.get<Envelope<{ packs: TestPack[] }>>(`/subjects/${subjectId}/packs`);
+    return unwrap(res.data).packs;
+  },
+  get: async (packId: string) => {
+    const res = await api.get<Envelope<PackDetail>>(`/packs/${packId}`);
+    return unwrap(res.data);
+  },
+};
+
 // ----- Assessments -----
 
 export const assessmentApi = {
@@ -78,6 +93,7 @@ export const assessmentApi = {
     topicIds?: string[];
     difficulty?: 1 | 2 | 3;
     questionCount?: number;
+    packId?: string;
   }) => {
     const res = await api.post<Envelope<{ assessment: Assessment }>>(
       '/assessments',

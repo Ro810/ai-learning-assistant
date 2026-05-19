@@ -64,6 +64,13 @@ const AssessmentSchema = new Schema<IAssessmentDocument>(
       ref: 'Subject',
       required: [true, 'Subject ID is required'],
     },
+    // Link tới TestPack nếu assessment tạo từ đề pre-seed. AI flow giữ null.
+    packId: {
+      type: Schema.Types.ObjectId,
+      ref: 'TestPack',
+      default: null,
+      index: true,
+    },
     status: {
       type: String,
       enum: ['in_progress', 'completed', 'abandoned'],

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { listSubjects, getSubject } from '../controllers/subject.controller';
+import { listPacksBySubject } from '../controllers/pack.controller';
 
 const router = Router();
 
@@ -46,5 +47,22 @@ router.get('/', listSubjects);
  *         description: Subject not found
  */
 router.get('/:id', getSubject);
+
+/**
+ * @swagger
+ * /api/subjects/{id}/packs:
+ *   get:
+ *     summary: List pre-seeded TestPacks for a subject (vd. English THPT đề 1-10)
+ *     tags: [Subjects, Packs]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: Pack list sorted by order asc }
+ *       400: { description: Invalid subject id }
+ */
+router.get('/:id/packs', listPacksBySubject);
 
 export default router;

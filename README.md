@@ -104,16 +104,27 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api
 2. Dashboard → chọn môn → "Bắt đầu" → AI sinh câu hỏi (~10-30s)
 3. Trả lời → "Nộp bài" → xem điểm + phân tích kỹ năng + review từng câu
 4. Bài hiện trên Dashboard kèm điểm và trình độ đề xuất
+5. (Tiếng Anh THPT) Dashboard → "Tiếng Anh THPT" → chọn 1 trong 10 đề → chọn phần thi → làm ngay (không cần AI)
 
 ## Database
 
 4 môn mặc định sau khi `npm run seed:subjects`:
 - Toán THPT (5 chủ đề)
-- IELTS (5 chủ đề)
+- Tiếng Anh THPT (6 phần thi — có cấu trúc đề pre-seed, xem dưới)
 - Lập trình Python (4 chủ đề)
 - Tiếng Anh giao tiếp (4 chủ đề)
 
-6 collection chính: `users`, `subjects`, `questions`, `assessments`, `learningpaths`, `practicesessions`.
+7 collection chính: `users`, `subjects`, `questions`, `assessments`, `learningpaths`, `practicesessions`, `testpacks`.
+
+### Tiếng Anh THPT — cấu trúc đề thi
+Môn `english-thpt` hoạt động khác các môn còn lại: thay vì AI sinh câu mỗi lần, có 10 đề pre-seed (Đề 1 → Đề 10), mỗi đề 40 câu MCQ chia theo 6 phần (Ngữ âm, Ngữ pháp, Từ vựng, Đọc hiểu, Tìm lỗi sai, Viết lại câu). Seed thêm bằng:
+
+```bash
+cd backend
+npm run seed:english-thpt-packs   # cần chạy sau seed:subjects
+```
+
+Trên UI: dashboard → Tiếng Anh THPT → danh sách 10 đề → chọn 1 đề → chọn 1 phần thi → làm bài.
 
 Xem dữ liệu nhanh bằng VSCode MongoDB extension + file [playground-1.mongodb.js](playground-1.mongodb.js).
 

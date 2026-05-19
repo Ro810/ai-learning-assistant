@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src/**/*.ts",
-    "seed:subjects": "ts-node-dev --transpile-only src/scripts/seed-subjects.ts"
+    "seed:subjects": "ts-node-dev --transpile-only src/scripts/seed-subjects.ts",
+    "seed:english-thpt-packs": "ts-node-dev --transpile-only src/scripts/seed-english-thpt-packs.ts"
   },
   "dependencies": {
     "@google/genai": "^1.52.0",
