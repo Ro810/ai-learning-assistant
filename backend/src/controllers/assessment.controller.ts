@@ -149,7 +149,13 @@ export const createAssessment = async (
       }
       questions = found;
     } else {
-      // AI flow nguyên gốc.
+      // AI flow nguyên gốc. Chọn ngôn ngữ output theo subject code:
+      // - english-communication, english-thpt → tiếng Anh
+      // - các môn còn lại → tiếng Việt (mặc định)
+      const subjectMeta = await Subject.findById(subjectId).select('code').lean();
+      const isEnglishSubject =
+        subjectMeta?.code === 'english-communication' ||
+        subjectMeta?.code === 'english-thpt';
       try {
         questions = await questionGenerator.generate({
           subjectId,
@@ -157,6 +163,7 @@ export const createAssessment = async (
           difficulty: difficulty ?? 2,
           count: questionCount ?? 10,
           questionType: 'multiple_choice',
+          language: isEnglishSubject ? 'en' : 'vi',
         });
       } catch (err: any) {
         return res.status(502).json({

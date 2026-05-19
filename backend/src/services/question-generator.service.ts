@@ -27,7 +27,39 @@ const resolveTopicNames = async (
 };
 
 const generateQuestionPrompt = (data: IQuestionPromptData): string => {
-  const difficultyLabel = data.difficulty === 1 ? 'Dễ (Basic)' : data.difficulty === 2 ? 'Trung bình (Intermediate)' : 'Khó (Advanced)';
+  if (data.language === 'en') {
+    const diff =
+      data.difficulty === 1 ? 'Basic' : data.difficulty === 2 ? 'Intermediate' : 'Advanced';
+    return `
+You are an English teacher. Generate ${data.count} multiple-choice questions on the topic: ${data.topic}.
+
+Difficulty: ${diff}
+
+Requirements:
+1. Each question has 4 options (A, B, C, D).
+2. Exactly one correct answer.
+3. Write the question, all options, and the explanation entirely in English.
+4. Provide a clear, concise explanation for the correct answer.
+
+Return ONLY a JSON array (no surrounding text, no markdown):
+[
+  {
+    "questionText": "...",
+    "options": [
+      { "id": "A", "text": "...", "isCorrect": false },
+      { "id": "B", "text": "...", "isCorrect": true },
+      { "id": "C", "text": "...", "isCorrect": false },
+      { "id": "D", "text": "...", "isCorrect": false }
+    ],
+    "correctAnswer": "B",
+    "explanation": "..."
+  }
+]
+`.trim();
+  }
+
+  const difficultyLabel =
+    data.difficulty === 1 ? 'Dễ (Basic)' : data.difficulty === 2 ? 'Trung bình (Intermediate)' : 'Khó (Advanced)';
 
   return `
 Bạn là một giáo viên chuyên môn. Hãy sinh ${data.count} câu hỏi trắc nghiệm về chủ đề: ${data.topic}.
@@ -71,6 +103,7 @@ export class QuestionGeneratorService {
       difficulty: input.difficulty,
       count: input.count,
       questionType: input.questionType,
+      language: input.language ?? 'vi',
     });
 
     let response: string;

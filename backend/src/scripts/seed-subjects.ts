@@ -211,7 +211,96 @@ const CATALOG: CatalogEntry[] = [
     name: 'Tiếng Anh giao tiếp',
     code: 'english-communication',
     description: 'Tiếng Anh giao tiếp hằng ngày và môi trường công việc.',
-    topics: t(['Greetings & Small Talk', 'Travel', 'Business English', 'Daily Life']),
+    topics: [
+      {
+        name: 'Greetings & Introductions',
+        description: 'Chào hỏi, giới thiệu bản thân.',
+        summary: [
+          'Common greetings: Hi / Hello / Good morning / How are you?',
+          'Self-introduction: My name is… / I work as… / I am from…',
+          'Asking about others: What do you do? / Where are you from?',
+          'Formal vs casual register: Nice to meet you vs Hey, what\'s up?',
+          'Polite closings: It was nice talking to you. / See you soon.',
+        ].join('\n'),
+      },
+      {
+        name: 'Small Talk & Hobbies',
+        description: 'Trò chuyện thông thường, sở thích.',
+        summary: [
+          'Safe topics: weather, weekend plans, hobbies, sports, movies.',
+          'Open-ended questions: What do you like to do in your free time?',
+          'Active listening fillers: Really? / That sounds great. / Oh, interesting.',
+          'Sharing opinions: I think… / In my opinion… / I\'d say…',
+          'Avoid sensitive topics: politics, religion, salary.',
+        ].join('\n'),
+      },
+      {
+        name: 'Travel & Transport',
+        description: 'Sân bay, di chuyển, hỏi đường.',
+        summary: [
+          'At the airport: check-in, boarding pass, gate, baggage claim.',
+          'Asking directions: Excuse me, how do I get to…? / Is it far from here?',
+          'Public transport: Which bus goes to…? / How much is a ticket?',
+          'Taxi/ride-share: Could you take me to…? / Stop here, please.',
+          'Useful adjectives: nearby, around the corner, two blocks away.',
+        ].join('\n'),
+      },
+      {
+        name: 'Hotel & Accommodation',
+        description: 'Đặt phòng, check-in/check-out.',
+        summary: [
+          'Booking: I\'d like to book a single/double room for two nights.',
+          'Check-in: I have a reservation under the name…',
+          'Common requests: extra towels, late check-out, wake-up call.',
+          'Problems: The Wi-Fi isn\'t working / The room is too noisy.',
+          'Check-out: Could I have the bill, please? / I\'d like to check out.',
+        ].join('\n'),
+      },
+      {
+        name: 'Restaurant & Food',
+        description: 'Gọi món, đặt bàn, thanh toán.',
+        summary: [
+          'Reservation: I\'d like to book a table for two at 7pm.',
+          'Ordering: Could I have the menu? / I\'ll have the…',
+          'Asking about dishes: What do you recommend? / Is this spicy?',
+          'Dietary needs: I\'m vegetarian / I\'m allergic to nuts.',
+          'Paying: Could we have the bill, please? / Can I pay by card?',
+        ].join('\n'),
+      },
+      {
+        name: 'Shopping',
+        description: 'Mua sắm, hỏi giá, đổi trả.',
+        summary: [
+          'Browsing: I\'m just looking, thanks. / Do you have this in size M?',
+          'Asking price: How much is this? / Is there a discount?',
+          'Trying on clothes: Where is the fitting room? / It\'s too tight/loose.',
+          'Payment: Cash or card? / Could I have a receipt?',
+          'Returns: I\'d like to return/exchange this. / Do you offer refunds?',
+        ].join('\n'),
+      },
+      {
+        name: 'Business Meetings',
+        description: 'Họp công ty, thảo luận, đàm phán.',
+        summary: [
+          'Opening: Thank you all for coming. Let\'s get started.',
+          'Giving opinions: From my perspective… / I\'d like to add that…',
+          'Agreeing/disagreeing: I see your point, but… / Absolutely. / I\'m not sure about that.',
+          'Interrupting politely: Sorry to interrupt, may I add something?',
+          'Closing: To wrap up… / Let\'s schedule a follow-up.',
+        ].join('\n'),
+      },
+      {
+        name: 'Email & Communication',
+        description: 'Viết email, message công việc.',
+        summary: [
+          'Greetings: Dear Mr./Ms. … / Hi [Name] (informal).',
+          'Common openers: I hope this email finds you well. / Following up on…',
+          'Making requests: Could you please…? / I\'d appreciate it if you could…',
+          'Attaching files: Please find attached… / I\'ve attached the document.',
+          'Sign-off: Best regards, / Kind regards, / Thanks.',
+        ].join('\n'),
+      },
+    ],
   },
 ];
 

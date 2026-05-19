@@ -13,7 +13,7 @@ import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PackGrid } from '@/components/pack-grid';
-import { PythonStudyView } from '@/components/python-study-view';
+import { TopicStudyView } from '@/components/topic-study-view';
 import { subjectApi, packApi } from '@/lib/api-services';
 import { topicIcon } from '@/lib/topic-icon';
 import { getErrorMessage } from '@/lib/api-client';
@@ -114,7 +114,8 @@ function SubjectDetailInner({ id }: { id: string }) {
   };
 
   const isPackMode = subject?.code === 'english-thpt';
-  const isStudyMode = subject?.code === 'python-programming';
+  const isStudyMode =
+    subject?.code === 'python-programming' || subject?.code === 'english-communication';
 
   return (
     <div className="min-h-screen bg-background">
@@ -167,7 +168,7 @@ function SubjectDetailInner({ id }: { id: string }) {
             {isPackMode ? (
               <PackGrid packs={packs ?? []} subjectId={id} />
             ) : isStudyMode ? (
-              <PythonStudyView subject={subject} subjectId={id} />
+              <TopicStudyView subject={subject} subjectId={id} />
             ) : (
               <TopicGrid
                 topics={subject.topics}

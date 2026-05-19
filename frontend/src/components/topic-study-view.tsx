@@ -1,6 +1,6 @@
 'use client';
 
-// Python subject layout giống W3Schools:
+// Topic study layout giống W3Schools (dùng cho Python, English Communication, ...):
 // LEFT — vertical sidebar danh sách chủ đề (click để chọn).
 // RIGHT — tóm tắt kiến thức của chủ đề + slider 5-20 câu + nút "Bắt đầu làm bài".
 // Click "Bắt đầu" gọi assessment create trực tiếp (skip /assessment/new).
@@ -14,12 +14,12 @@ import { getErrorMessage } from '@/lib/api-client';
 import { topicIcon } from '@/lib/topic-icon';
 import type { Subject } from '@/lib/types';
 
-interface PythonStudyViewProps {
+interface TopicStudyViewProps {
   subject: Subject;
   subjectId: string;
 }
 
-export function PythonStudyView({ subject, subjectId }: PythonStudyViewProps) {
+export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
   const router = useRouter();
   const topics = subject.topics;
   const [selectedIdx, setSelectedIdx] = useState(0);

@@ -10,6 +10,8 @@ export interface IGenerateQuestionsInput {
   difficulty: 1 | 2 | 3;
   count: number;
   questionType: 'multiple_choice';
+  // Ngôn ngữ nội dung câu hỏi. 'en' cho subjects tiếng Anh, 'vi' (mặc định) cho còn lại.
+  language?: 'vi' | 'en';
 }
 
 export interface IQuestionPromptData {
@@ -17,6 +19,7 @@ export interface IQuestionPromptData {
   difficulty: 1 | 2 | 3;
   count: number;
   questionType: 'multiple_choice';
+  language: 'vi' | 'en';
 }
 
 export interface ILearningPathPromptData {
