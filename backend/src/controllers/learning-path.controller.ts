@@ -24,7 +24,8 @@ const createLearningPathSchema = z
 
 const updateLearningPathSchema = z.object({
   milestoneId: z.string().optional(),
-  action: z.enum(['complete', 'update_progress']).optional(),
+  // 'uncomplete' để toggle off cho FE — không có sẽ kẹt tick.
+  action: z.enum(['complete', 'uncomplete', 'update_progress']).optional(),
   completionRate: z.number().min(0).max(100).optional(),
 });
 
@@ -93,6 +94,23 @@ export const createLearningPath = async (
       });
     }
     const subjectId = derivedSubjectId;
+
+    // Chặn trùng path active cùng subject — tránh user tạo nhiều path chồng nhau
+    // và lãng phí token AI. FE bắt 409 và hỏi user có muốn xem path cũ không.
+    const existingActive = await LearningPath.findOne({
+      userId: new mongoose.Types.ObjectId(userId),
+      subjectId: new mongoose.Types.ObjectId(subjectId),
+      status: 'active',
+    })
+      .select('_id')
+      .lean();
+    if (existingActive) {
+      return res.status(409).json({
+        success: false,
+        message: 'Đã có lộ trình đang học cho môn này. Hoàn thành/xóa trước khi tạo mới.',
+        data: { existingId: existingActive._id.toString() },
+      });
+    }
 
     const learningPath = await learningPathGenerator.generate({
       subjectId,
@@ -208,6 +226,10 @@ export const updateLearningPath = async (
           if (action === 'complete') {
             milestone.completedAt = new Date();
             milestone.completionRate = 100;
+          } else if (action === 'uncomplete') {
+            // Toggle off — clear completedAt và reset progress về 0.
+            milestone.completedAt = null as any;
+            milestone.completionRate = 0;
           } else if (action === 'update_progress' && completionRate !== undefined) {
             milestone.completionRate = Math.min(100, Math.max(0, completionRate));
           }
@@ -225,9 +247,11 @@ export const updateLearningPath = async (
       ? Math.round((completedMilestones / totalMilestones) * 100)
       : 0;
 
-    // Update status
+    // Update status — revert về 'active' nếu user uncomplete khi đã ở 'completed'.
     if (learningPath.progressPercent === 100) {
       learningPath.status = 'completed';
+    } else if (learningPath.status === 'completed') {
+      learningPath.status = 'active';
     }
 
     await learningPath.save();

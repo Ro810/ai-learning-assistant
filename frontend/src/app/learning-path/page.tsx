@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import axios from 'axios';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -48,6 +49,8 @@ function LearningPathListInner() {
   const [formAssessmentIds, setFormAssessmentIds] = useState<string[]>([]);
   const [formLevel, setFormLevel] = useState<'basic' | 'intermediate' | 'advanced'>('basic');
   const [formDate, setFormDate] = useState('');
+  // Giờ học/tuần — backend cap MAX_MILESTONES=16 nên giá trị này ảnh hưởng workload mỗi milestone.
+  const [formWeeklyHours, setFormWeeklyHours] = useState<number>(10);
   const [submitting, setSubmitting] = useState(false);
   // Đếm giây trôi qua kể từ lúc bấm "Tạo lộ trình" để user biết AI vẫn đang chạy.
   const [elapsed, setElapsed] = useState(0);
@@ -90,11 +93,12 @@ function LearningPathListInner() {
   const subjectName = (id: string) =>
     subjects.find((s) => s._id === id)?.name ?? id.slice(-6);
 
-  // Các môn người dùng có bài đánh giá hoàn thành — dùng để render select.
-  const availableSubjects = useMemo(() => {
-    const ids = new Set(completedAssessments.map((a) => a.subjectId));
-    return subjects.filter((s) => ids.has(s._id));
-  }, [subjects, completedAssessments]);
+  // Set id các môn user đã có bài đánh giá hoàn thành — dùng để disable option
+  // các môn chưa đánh giá (hiện cả 4 môn để user thấy được lựa chọn nào còn thiếu).
+  const subjectsWithAssessment = useMemo(
+    () => new Set(completedAssessments.map((a) => a.subjectId)),
+    [completedAssessments],
+  );
 
   // Các bài đánh giá đã hoàn thành thuộc môn đang chọn.
   const subjectAssessments = useMemo(
@@ -132,10 +136,25 @@ function LearningPathListInner() {
         assessmentIds: formAssessmentIds,
         targetLevel: formLevel,
         targetDate: formDate,
+        weeklyStudyHours: formWeeklyHours,
       });
       toast.success('Tạo lộ trình thành công!');
       router.push(`/learning-path/${path._id}`);
     } catch (err) {
+      // Backend trả 409 + data.existingId khi đã có path active cùng môn.
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const data = err.response.data as { message?: string; data?: { existingId?: string } };
+        const existingId = data?.data?.existingId;
+        if (existingId) {
+          toast.error(data.message ?? 'Đã có lộ trình đang học cho môn này.', {
+            action: {
+              label: 'Xem lộ trình cũ',
+              onClick: () => router.push(`/learning-path/${existingId}`),
+            },
+          });
+          return;
+        }
+      }
       const msg = getErrorMessage(err);
       toast.error(msg);
     } finally {
@@ -147,13 +166,6 @@ function LearningPathListInner() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-4 py-6 space-y-6">
-        <section>
-          <h1 className="text-2xl font-semibold">Lộ trình học</h1>
-          <p className="text-sm text-muted-foreground">
-            Xem các lộ trình đang có hoặc tạo lộ trình mới từ bài đánh giá.
-          </p>
-        </section>
-
         {error && (
           <div className="rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -177,7 +189,10 @@ function LearningPathListInner() {
             <div className="space-y-2">
               {paths.map((p) => {
                 const meta = statusLabels[p.status ?? ''] ?? { label: p.status ?? '—', variant: 'secondary' as const };
-                const done = p.milestones?.filter((m) => m.completed).length ?? 0;
+                // Đếm milestone đã hoàn thành theo completedAt (hoặc completionRate=100).
+                const done = p.milestones?.filter(
+                  (m) => m.completedAt || m.completionRate === 100,
+                ).length ?? 0;
                 const total = p.milestones?.length ?? 0;
                 return (
                   <Card key={p._id}>
@@ -230,12 +245,24 @@ function LearningPathListInner() {
                   disabled={loading || submitting}
                 >
                   <option value="">-- Chọn môn --</option>
-                  {availableSubjects.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
+                  {subjects.map((s) => {
+                    const hasAssessment = subjectsWithAssessment.has(s._id);
+                    return (
+                      <option key={s._id} value={s._id} disabled={!hasAssessment}>
+                        {s.name}
+                        {!hasAssessment ? ' — cần đánh giá trước' : ''}
+                      </option>
+                    );
+                  })}
                 </select>
+                {formSubjectId && !subjectsWithAssessment.has(formSubjectId) && (
+                  <p className="text-xs text-amber-600">
+                    Môn này chưa có bài đánh giá.{' '}
+                    <Link href="/assessment/new" className="underline">
+                      Bắt đầu đánh giá
+                    </Link>
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1">
@@ -307,6 +334,38 @@ function LearningPathListInner() {
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   disabled={submitting}
                 />
+                {(() => {
+                  // Backend cap milestone tối đa 16 tuần — báo trước để user biết
+                  // ngày quá xa sẽ bị dồn lại 16 milestone thay vì sinh hàng chục tuần.
+                  if (!formDate) return null;
+                  const days = Math.ceil(
+                    (new Date(formDate).getTime() - Date.now()) / 86_400_000,
+                  );
+                  const weeks = Math.ceil(days / 7);
+                  if (weeks > 16) {
+                    return (
+                      <p className="text-xs text-amber-600">
+                        Khoảng {weeks} tuần — lộ trình sẽ chỉ có tối đa 16 milestone (mỗi milestone phủ nhiều tuần).
+                      </p>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Giờ học/tuần</label>
+                <select
+                  value={formWeeklyHours}
+                  onChange={(e) => setFormWeeklyHours(Number(e.target.value))}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={submitting}
+                >
+                  <option value={5}>5 giờ (nhẹ)</option>
+                  <option value={10}>10 giờ (trung bình)</option>
+                  <option value={15}>15 giờ (chăm)</option>
+                  <option value={20}>20 giờ (cường độ cao)</option>
+                </select>
               </div>
 
               <div className="flex items-center gap-3">

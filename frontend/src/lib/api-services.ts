@@ -143,6 +143,8 @@ export const learningPathApi = {
     assessmentIds: string[];
     targetLevel: 'basic' | 'intermediate' | 'advanced';
     targetDate: string;
+    // Giờ học/tuần — backend dùng để cân estimatedDays cho mỗi milestone.
+    weeklyStudyHours?: number;
   }) => {
     const res = await api.post<Envelope<{ learningPath: LearningPath }>>(
       '/learning-paths',
@@ -150,7 +152,15 @@ export const learningPathApi = {
     );
     return unwrap(res.data).learningPath;
   },
-  update: async (id: string, input: { milestoneIndex: number; completed: boolean }) => {
+  update: async (
+    id: string,
+    input: {
+      milestoneId: string;
+      // 'complete' tick xong, 'uncomplete' bỏ tick, 'update_progress' set %
+      action: 'complete' | 'uncomplete' | 'update_progress';
+      completionRate?: number;
+    },
+  ) => {
     const res = await api.put<Envelope<{ learningPath: LearningPath }>>(
       `/learning-paths/${id}`,
       input,

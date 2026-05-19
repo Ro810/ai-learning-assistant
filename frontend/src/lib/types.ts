@@ -116,10 +116,12 @@ export interface LearningPathSummary {
   targetLevel?: string;
   targetDate?: string;
   status?: string;
+  progressPercent?: number;
   milestones?: Array<{
-    week?: number;
+    _id?: string;
     title?: string;
-    completed?: boolean;
+    completedAt?: string | null;
+    completionRate?: number;
   }>;
   createdAt: string;
 }
@@ -138,13 +140,21 @@ export interface PracticeSessionSummary {
 
 // ----- Learning Path (full) -----
 
+export interface LearningPathResource {
+  type: 'video' | 'article' | 'exercise';
+  title: string;
+  url?: string | null;
+}
+
 export interface LearningPathMilestone {
-  week: number;
+  _id: string;
+  title: string;
   topicIds: string[];
   difficulty: 1 | 2 | 3;
   estimatedDays: number;
-  resources: string[];
-  completed: boolean;
+  resources: LearningPathResource[];
+  completedAt?: string | null;
+  completionRate: number;
 }
 
 export interface LearningPath {
@@ -153,9 +163,11 @@ export interface LearningPath {
   subjectId: string;
   basedOnAssessmentId?: string;
   targetLevel: 'basic' | 'intermediate' | 'advanced';
+  startDate?: string;
   targetDate: string;
-  milestones: LearningPathMilestone[];
   status: string;
+  milestones: LearningPathMilestone[];
+  progressPercent?: number;
   createdAt: string;
 }
 

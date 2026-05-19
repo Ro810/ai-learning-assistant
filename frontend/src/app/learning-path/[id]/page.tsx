@@ -64,13 +64,17 @@ function LearningPathDetailInner({ id }: { id: string }) {
   const topicName = (topicId: string) =>
     subject?.topics.find((t) => t._id === topicId)?.name ?? topicId.slice(-6);
 
-  const handleToggleMilestone = async (idx: number, currentDone: boolean) => {
+  const handleToggleMilestone = async (
+    idx: number,
+    milestoneId: string,
+    currentDone: boolean,
+  ) => {
     if (!path || updatingIdx !== null) return;
     setUpdatingIdx(idx);
     try {
       const updated = await learningPathApi.update(id, {
-        milestoneIndex: idx,
-        completed: !currentDone,
+        milestoneId,
+        action: currentDone ? 'uncomplete' : 'complete',
       });
       setPath(updated);
       toast.success(!currentDone ? 'Đã đánh dấu hoàn thành!' : 'Đã bỏ đánh dấu.');
@@ -124,7 +128,9 @@ function LearningPathDetailInner({ id }: { id: string }) {
     );
   }
 
-  const completedCount = path.milestones.filter((m) => m.completed).length;
+  const isMilestoneDone = (m: { completedAt?: string | null; completionRate?: number }) =>
+    Boolean(m.completedAt) || m.completionRate === 100;
+  const completedCount = path.milestones.filter(isMilestoneDone).length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -184,11 +190,14 @@ function LearningPathDetailInner({ id }: { id: string }) {
             {path.milestones.map((m, idx) => {
               const diff = difficultyLabels[m.difficulty] ?? { label: `Độ khó ${m.difficulty}`, variant: 'secondary' as const };
               const isUpdating = updatingIdx === idx;
+              const done = isMilestoneDone(m);
               return (
-                <Card key={idx} className={m.completed ? 'opacity-70' : ''}>
+                <Card key={m._id ?? idx} className={done ? 'opacity-70' : ''}>
                   <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Tuần {m.week}</CardTitle>
+                    <div className="flex items-center justify-between gap-3">
+                      <CardTitle className="text-base">
+                        {m.title || `Tuần ${idx + 1}`}
+                      </CardTitle>
                       <div className="flex items-center gap-2">
                         <Badge variant={diff.variant}>{diff.label}</Badge>
                         <span className="text-xs text-muted-foreground">
@@ -197,15 +206,15 @@ function LearningPathDetailInner({ id }: { id: string }) {
                         <button
                           type="button"
                           disabled={isUpdating}
-                          onClick={() => handleToggleMilestone(idx, m.completed)}
+                          onClick={() => handleToggleMilestone(idx, m._id, done)}
                           className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            m.completed
+                            done
                               ? 'bg-primary border-primary text-primary-foreground'
                               : 'border-input hover:border-primary'
                           } ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          aria-label={m.completed ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}
+                          aria-label={done ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}
                         >
-                          {m.completed && (
+                          {done && (
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                             </svg>
@@ -228,27 +237,30 @@ function LearningPathDetailInner({ id }: { id: string }) {
                         </div>
                       </div>
                     )}
-                    {/* Resources */}
+                    {/* Resources — object { type, title, url } */}
                     {m.resources.length > 0 && (
                       <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">Tài nguyên:</p>
                         <ul className="space-y-1">
-                          {m.resources.map((r, ri) => (
-                            <li key={ri} className="text-xs">
-                              {r.startsWith('http') ? (
-                                <a
-                                  href={r}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-primary underline"
-                                >
-                                  {r}
-                                </a>
-                              ) : (
-                                <span className="text-muted-foreground">{r}</span>
-                              )}
-                            </li>
-                          ))}
+                          {m.resources.map((r, ri) => {
+                            const label = `[${r.type}] ${r.title}`;
+                            return (
+                              <li key={ri} className="text-xs">
+                                {r.url ? (
+                                  <a
+                                    href={r.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary underline"
+                                  >
+                                    {label}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground">{label}</span>
+                                )}
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     )}
