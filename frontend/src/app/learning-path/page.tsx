@@ -208,7 +208,7 @@ function LearningPathListInner() {
                         <p className="text-xs text-muted-foreground">
                           Ngày mục tiêu: {formatDate(p.targetDate)}
                           {' · '}
-                          {done}/{total} milestone hoàn thành
+                          {done}/{total} chặng hoàn thành
                           {' · '}
                           Tạo: {formatDate(p.createdAt)}
                         </p>
@@ -345,7 +345,7 @@ function LearningPathListInner() {
                   if (weeks > 16) {
                     return (
                       <p className="text-xs text-amber-600">
-                        Khoảng {weeks} tuần — lộ trình sẽ chỉ có tối đa 16 milestone (mỗi milestone phủ nhiều tuần).
+                        Khoảng {weeks} tuần — lộ trình sẽ chỉ có tối đa 16 chặng (mỗi chặng phủ nhiều tuần).
                       </p>
                     );
                   }

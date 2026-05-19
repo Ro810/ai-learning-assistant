@@ -6,6 +6,7 @@ import { Subject } from '../models/subject.model';
 import { Question } from '../models/question.model';
 import { TestPack } from '../models/test-pack.model';
 import { questionGenerator } from '../services/question-generator.service';
+import { formatAIError } from '../services/ai-error-formatter';
 import {
   gradeAnswers,
   buildSkillAnalysis,
@@ -166,10 +167,12 @@ export const createAssessment = async (
           language: isEnglishSubject ? 'en' : 'vi',
         });
       } catch (err: any) {
-        return res.status(502).json({
+        const formatted = formatAIError(err);
+        console.error('[AssessmentCtrl] AI generate failed:', formatted.detail);
+        return res.status(formatted.status).json({
           success: false,
-          message: 'AI question generation failed',
-          error: err?.message,
+          message: formatted.message,
+          ...(formatted.retryAfterSec ? { retryAfterSec: formatted.retryAfterSec } : {}),
         });
       }
     }

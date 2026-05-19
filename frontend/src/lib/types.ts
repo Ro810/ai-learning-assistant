@@ -130,6 +130,10 @@ export interface PracticeSessionSummary {
   _id: string;
   status: 'in_progress' | 'completed' | 'abandoned';
   mode?: string;
+  // Backend trả kèm subjectId + topicIds (đã bỏ -questions). Dùng để
+  // match phiên đang dở với chặng/lộ trình tương ứng.
+  subjectId?: string;
+  topicIds?: string[];
   results?: {
     score?: number;
     totalCorrect?: number;

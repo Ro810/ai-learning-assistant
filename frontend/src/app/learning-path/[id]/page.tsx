@@ -6,15 +6,17 @@
 import { use, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { ArrowLeft, Play } from 'lucide-react';
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { learningPathApi, subjectApi } from '@/lib/api-services';
+import { learningPathApi, practiceApi, subjectApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
-import type { LearningPath, Subject } from '@/lib/types';
+import type { LearningPath, PracticeSessionSummary, Subject } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
   1: { label: 'Dễ', variant: 'secondary' },
@@ -37,6 +39,8 @@ function LearningPathDetailInner({ id }: { id: string }) {
   const router = useRouter();
   const [path, setPath] = useState<LearningPath | null>(null);
   const [subject, setSubject] = useState<Subject | null>(null);
+  // Phiên luyện đang dở (in_progress) — để biết hiện "Bắt đầu" hay "Tiếp tục".
+  const [inProgressSessions, setInProgressSessions] = useState<PracticeSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingIdx, setUpdatingIdx] = useState<number | null>(null);
@@ -49,9 +53,18 @@ function LearningPathDetailInner({ id }: { id: string }) {
         const lp = await learningPathApi.get(id);
         if (!active) return;
         setPath(lp);
-        // Load subject to resolve topic names
-        const sub = await subjectApi.get(lp.subjectId).catch(() => null);
-        if (active) setSubject(sub);
+        // Load subject + practice sessions song song.
+        const [sub, sessions] = await Promise.all([
+          subjectApi.get(lp.subjectId).catch(() => null),
+          practiceApi.list().catch(() => [] as PracticeSessionSummary[]),
+        ]);
+        if (!active) return;
+        setSubject(sub);
+        setInProgressSessions(
+          sessions.filter(
+            (s) => s.status === 'in_progress' && s.subjectId === lp.subjectId,
+          ),
+        );
       } catch (err) {
         if (active) setError(getErrorMessage(err));
       } finally {
@@ -60,6 +73,18 @@ function LearningPathDetailInner({ id }: { id: string }) {
     })();
     return () => { active = false; };
   }, [id]);
+
+  // Tìm phiên dở có topicIds overlap với chặng — nếu có thì hiện "Tiếp tục".
+  // Milestone không có topicIds (mock) → match bất kỳ phiên dở nào cùng subject.
+  const findInProgressFor = (milestoneTopicIds: string[]): string | null => {
+    if (inProgressSessions.length === 0) return null;
+    if (milestoneTopicIds.length === 0) return inProgressSessions[0]._id;
+    const setIds = new Set(milestoneTopicIds);
+    const match = inProgressSessions.find((s) =>
+      (s.topicIds ?? []).some((t) => setIds.has(t)),
+    );
+    return match?._id ?? null;
+  };
 
   const topicName = (topicId: string) =>
     subject?.topics.find((t) => t._id === topicId)?.name ?? topicId.slice(-6);
@@ -136,6 +161,18 @@ function LearningPathDetailInner({ id }: { id: string }) {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+        <div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/learning-path')}
+            className="-ml-2 text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Quay lại
+          </Button>
+        </div>
+
         {/* Header info */}
         <section className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -148,7 +185,7 @@ function LearningPathDetailInner({ id }: { id: string }) {
                 Mục tiêu: {formatDate(path.targetDate)}
               </span>
               <span className="text-sm text-muted-foreground">
-                {completedCount}/{path.milestones.length} milestone hoàn thành
+                {completedCount}/{path.milestones.length} chặng hoàn thành
               </span>
             </div>
           </div>
@@ -184,89 +221,115 @@ function LearningPathDetailInner({ id }: { id: string }) {
 
         {/* Milestones timeline */}
         {path.milestones.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Lộ trình này chưa có milestone nào.</p>
+          <p className="text-sm text-muted-foreground">Lộ trình này chưa có chặng nào.</p>
         ) : (
           <div className="space-y-4">
             {path.milestones.map((m, idx) => {
               const diff = difficultyLabels[m.difficulty] ?? { label: `Độ khó ${m.difficulty}`, variant: 'secondary' as const };
               const isUpdating = updatingIdx === idx;
               const done = isMilestoneDone(m);
-              return (
-                <Card key={m._id ?? idx} className={done ? 'opacity-70' : ''}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <CardTitle className="text-base">
-                        {m.title || `Tuần ${idx + 1}`}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={diff.variant}>{diff.label}</Badge>
-                        <span className="text-xs text-muted-foreground">
-                          ~{m.estimatedDays} ngày
-                        </span>
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleToggleMilestone(idx, m._id, done)}
-                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            done
-                              ? 'bg-primary border-primary text-primary-foreground'
-                              : 'border-input hover:border-primary'
-                          } ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          aria-label={done ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}
-                        >
-                          {done && (
-                            <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {/* Topics */}
-                    {m.topicIds.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Chủ đề:</p>
-                        <div className="flex flex-wrap gap-1">
-                          {m.topicIds.map((tid) => (
-                            <Badge key={tid} variant="secondary" className="text-xs">
-                              {topicName(tid)}
-                            </Badge>
-                          ))}
+              return (() => {
+                  const resumeId = findInProgressFor(m.topicIds);
+                  const href = resumeId
+                    ? `/practice/${resumeId}`
+                    : `/practice/new?subjectId=${path.subjectId}` +
+                      (m.topicIds.length > 0
+                        ? `&topicIds=${m.topicIds.join(',')}&mode=adaptive`
+                        : '&mode=adaptive');
+                  // Khi không có topics + resources → ẩn CardContent để card gọn.
+                  const hasExtraContent = m.topicIds.length > 0 || m.resources.length > 0;
+                  return (
+                    <Card
+                      key={m._id ?? idx}
+                      // Card root mặc định py-6 (12px+12px) → khi không có CardContent,
+                      // override py-3 để card co lại & header tự cân giữa.
+                      className={`${done ? 'opacity-70 ' : ''}${
+                        hasExtraContent ? '' : 'py-3'
+                      }`}
+                    >
+                      <CardHeader className={hasExtraContent ? 'pb-2' : ''}>
+                        <div className="flex items-center justify-between gap-3">
+                          <CardTitle className="text-lg">
+                            {m.title || `Tuần ${idx + 1}`}
+                          </CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Button asChild size="sm" className="gap-1.5 h-8">
+                              <Link href={href}>
+                                <Play className="h-3.5 w-3.5" />
+                                {resumeId ? 'Tiếp tục' : 'Bắt đầu'}
+                              </Link>
+                            </Button>
+                            <Badge variant={diff.variant}>{diff.label}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              ~{m.estimatedDays} ngày
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isUpdating}
+                              onClick={() => handleToggleMilestone(idx, m._id, done)}
+                              className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                                done
+                                  ? 'bg-primary border-primary text-primary-foreground'
+                                  : 'border-input hover:border-primary'
+                              } ${isUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                              aria-label={done ? 'Bỏ hoàn thành' : 'Đánh dấu hoàn thành'}
+                            >
+                              {done && (
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    )}
-                    {/* Resources — object { type, title, url } */}
-                    {m.resources.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Tài nguyên:</p>
-                        <ul className="space-y-1">
-                          {m.resources.map((r, ri) => {
-                            const label = `[${r.type}] ${r.title}`;
-                            return (
-                              <li key={ri} className="text-xs">
-                                {r.url ? (
-                                  <a
-                                    href={r.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-primary underline"
-                                  >
-                                    {label}
-                                  </a>
-                                ) : (
-                                  <span className="text-muted-foreground">{label}</span>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
+                      </CardHeader>
+                      {hasExtraContent && (
+                        <CardContent className="space-y-2 pt-0 pb-4">
+                          {/* Topics */}
+                          {m.topicIds.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Chủ đề:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {m.topicIds.map((tid) => (
+                                  <Badge key={tid} variant="secondary" className="text-xs">
+                                    {topicName(tid)}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Resources — object { type, title, url } */}
+                          {m.resources.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Tài nguyên:</p>
+                              <ul className="space-y-1">
+                                {m.resources.map((r, ri) => {
+                                  const label = `[${r.type}] ${r.title}`;
+                                  return (
+                                    <li key={ri} className="text-xs">
+                                      {r.url ? (
+                                        <a
+                                          href={r.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-primary underline"
+                                        >
+                                          {label}
+                                        </a>
+                                      ) : (
+                                        <span className="text-muted-foreground">{label}</span>
+                                      )}
+                                    </li>
+                                  );
+                                })}
+                              </ul>
+                            </div>
+                          )}
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })();
             })}
           </div>
         )}

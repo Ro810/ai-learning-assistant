@@ -9,6 +9,7 @@ import { Question } from '../models/question.model';
 import { Subject } from '../models/subject.model';
 import { Assessment } from '../models/assessment.model';
 import { questionGenerator } from '../services/question-generator.service';
+import { formatAIError } from '../services/ai-error-formatter';
 
 // Cấu hình sinh pack theo từng subject code (chỉ math-thpt cho phép sinh động).
 const GENERATABLE_SUBJECTS: Record<
@@ -179,6 +180,8 @@ export const generatePackForSubject = async (
 
     let generated = 0;
     let failed = 0;
+    let firstError: any = null;
+    let aborted = false;
     for (const topic of subject.topics) {
       try {
         const q = await questionGenerator.generate({
@@ -193,19 +196,31 @@ export const generatePackForSubject = async (
         generated += q.length;
       } catch (err: any) {
         failed += 1;
+        if (!firstError) firstError = err;
         console.error(
           `[generatePack] topic '${topic.name}' failed:`,
           err?.message
         );
+        // Quota out → abort sớm, không gọi tiếp các topic còn lại.
+        const fmt = formatAIError(err);
+        if (fmt.status === 429) {
+          aborted = true;
+          break;
+        }
       }
     }
 
     if (generated === 0) {
       // Hoàn toàn fail → xoá pack rỗng tránh rác DB.
       await TestPack.deleteOne({ _id: pack._id });
-      return res.status(502).json({
+      const fmt = firstError
+        ? formatAIError(firstError)
+        : { status: 502, message: 'AI sinh đề thất bại hoàn toàn. Vui lòng thử lại.', retryAfterSec: undefined as number | undefined };
+      return res.status(fmt.status).json({
         success: false,
-        message: 'AI sinh đề thất bại hoàn toàn. Vui lòng thử lại.',
+        message: fmt.message,
+        ...(fmt.retryAfterSec ? { retryAfterSec: fmt.retryAfterSec } : {}),
+        ...(aborted ? { aborted: true } : {}),
       });
     }
 

@@ -169,6 +169,12 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
           {error && (
             <div className="space-y-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
               <p>{error}</p>
+              {/* Khi hết quota Gemini, gợi ý dev workaround (bật mock) — text nhỏ. */}
+              {/quota|Gemini/i.test(error) && (
+                <p className="text-xs text-destructive/70">
+                  (Dev: đặt <code>USE_MOCK_AI=1</code> trong backend/.env để dùng mock khi hết quota.)
+                </p>
+              )}
               {existingId && (
                 <Button
                   type="button"

@@ -377,7 +377,7 @@ function DashboardInner() {
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">
                           Mục tiêu: {p.targetLevel ?? '—'} ·{' '}
-                          {p.milestones?.length ?? 0} milestone
+                          {p.milestones?.length ?? 0} chặng
                         </p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
