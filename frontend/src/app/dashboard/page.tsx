@@ -169,7 +169,7 @@ function DashboardInner() {
       return {
         kind: 'practice' as const,
         href: `/practice/${s._id}`,
-        title: s.mode === 'exam_simulation' ? 'Mô phỏng đề' : 'Luyện tập thích ứng',
+        title: s.label || (s.mode === 'exam_simulation' ? 'Mô phỏng đề' : 'Luyện tập thích ứng'),
         subtitle: 'Phiên luyện tập đang dở',
         createdAt: s.createdAt,
       };
@@ -412,9 +412,10 @@ function DashboardInner() {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium truncate">
-                            {s.mode === 'exam_simulation'
-                              ? 'Mô phỏng đề'
-                              : 'Luyện tập thích ứng'}
+                            {s.label ||
+                              (s.mode === 'exam_simulation'
+                                ? 'Mô phỏng đề'
+                                : 'Luyện tập thích ứng')}
                           </span>
                           <StatusBadge status={s.status} />
                         </div>

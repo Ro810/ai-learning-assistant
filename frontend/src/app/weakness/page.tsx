@@ -6,6 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import axios from 'axios';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,8 @@ function WeaknessInner() {
   const [items, setItems] = useState<WeakTopicItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // topicId đang tạo phiên — để disable nút + hiện trạng thái.
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -37,12 +41,32 @@ function WeaknessInner() {
     return () => { active = false; };
   }, []);
 
-  const handlePractice = (item: WeakTopicItem) => {
-    const params = new URLSearchParams({
-      topicIds: item.topicId,
-      mode: 'adaptive',
-    });
-    router.push(`/practice/new?${params.toString()}`);
+  // Tạo phiên luyện tập trực tiếp cho chủ đề yếu rồi nhảy thẳng vào làm bài,
+  // không qua form /practice/new. Gặp 409 (đang có bài dở) → vào luôn bài đó.
+  const handlePractice = async (item: WeakTopicItem) => {
+    if (startingId) return;
+    setStartingId(item.topicId);
+    try {
+      const session = await practiceApi.create({
+        subjectId: item.subjectId,
+        topicIds: [item.topicId],
+        mode: 'adaptive',
+        questionCount: 10,
+        label: item.topicName ? `Luyện tập: ${item.topicName}` : undefined,
+      });
+      router.push(`/practice/${session._id}`);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const existingId = (err.response.data as { data?: { existingId?: string } })?.data?.existingId;
+        if (existingId) {
+          toast.info('Bạn còn 1 bài đang làm dở — tiếp tục bài đó.');
+          router.push(`/practice/${existingId}`);
+          return;
+        }
+      }
+      toast.error(getErrorMessage(err));
+      setStartingId(null);
+    }
   };
 
   return (
@@ -137,9 +161,10 @@ function WeaknessInner() {
                         size="sm"
                         variant="outline"
                         onClick={() => handlePractice(item)}
+                        disabled={startingId !== null}
                         className="shrink-0 ml-3"
                       >
-                        Luyện tập
+                        {startingId === item.topicId ? 'Đang tạo...' : 'Luyện tập'}
                       </Button>
                     </CardContent>
                   </Card>

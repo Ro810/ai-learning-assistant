@@ -130,6 +130,8 @@ export interface PracticeSessionSummary {
   _id: string;
   status: 'in_progress' | 'completed' | 'abandoned';
   mode?: string;
+  // Tên chặng lộ trình (nếu phiên tạo từ màn học chặng) — hiện thay tiêu đề chung.
+  label?: string | null;
   // Backend trả kèm subjectId + topicIds (đã bỏ -questions). Dùng để
   // match phiên đang dở với chặng/lộ trình tương ứng.
   subjectId?: string;
