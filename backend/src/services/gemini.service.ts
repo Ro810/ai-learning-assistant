@@ -17,35 +17,60 @@ export class GeminiService implements IAIProvider {
     this.model = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   }
 
+  // Số lần thử lại khi gặp 503 (model quá tải) trên cùng 1 key, kèm backoff.
+  private static readonly MAX_RETRIES_503 = 2;
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async generateContent(prompt: string): Promise<string> {
     const keys = geminiKeyPool.candidates();
     let lastErr: unknown;
 
     for (const apiKey of keys) {
-      try {
-        const client = new GoogleGenAI({ apiKey });
-        const response = await client.models.generateContent({
-          model: this.model,
-          contents: prompt,
-        });
-        geminiKeyPool.markGood(apiKey);
-        return response.text ?? '';
-      } catch (err) {
-        lastErr = err;
-        // Chỉ xoay key khi lỗi do hết quota (429). Lỗi khác (503 overload, 400
-        // prompt sai, ...) không phải lỗi của key → ném luôn, đổi key vô ích.
-        if (formatAIError(err).status === 429) {
-          geminiKeyPool.markExhausted(apiKey);
-          console.warn(
-            `[Gemini] Key ...${apiKey.slice(-6)} hết quota (429), thử key kế tiếp.`,
-          );
-          continue;
+      const client = new GoogleGenAI({ apiKey });
+      // Với mỗi key, thử lại vài lần nếu gặp 503 (quá tải tạm thời).
+      for (let attempt = 0; attempt <= GeminiService.MAX_RETRIES_503; attempt++) {
+        try {
+          const response = await client.models.generateContent({
+            model: this.model,
+            contents: prompt,
+          });
+          geminiKeyPool.markGood(apiKey);
+          return response.text ?? '';
+        } catch (err) {
+          lastErr = err;
+          const status = formatAIError(err).status;
+
+          // 429 — key hết quota: đánh dấu cooldown, sang key kế tiếp (bỏ retry key này).
+          if (status === 429) {
+            geminiKeyPool.markExhausted(apiKey);
+            console.warn(`[Gemini] Key ...${apiKey.slice(-6)} hết quota (429), thử key kế tiếp.`);
+            break;
+          }
+
+          // 503 — model quá tải (tạm thời): đợi backoff rồi thử lại cùng key.
+          if (status === 503 && attempt < GeminiService.MAX_RETRIES_503) {
+            const backoffMs = 800 * (attempt + 1);
+            console.warn(`[Gemini] 503 quá tải, thử lại sau ${backoffMs}ms (lần ${attempt + 1}).`);
+            await this.sleep(backoffMs);
+            continue;
+          }
+
+          // 503 đã hết lượt retry → sang key khác (biết đâu key khác đỡ tải hơn).
+          if (status === 503) {
+            console.warn(`[Gemini] 503 quá tải, hết retry với key ...${apiKey.slice(-6)}, thử key kế tiếp.`);
+            break;
+          }
+
+          // Lỗi khác (400 prompt sai, 401/403 key sai, ...) → ném luôn, đổi key vô ích.
+          throw err;
         }
-        throw err;
       }
     }
 
-    // Hết key khả dụng (tất cả 429) → ném lỗi cuối để controller formatAIError xử lý.
+    // Hết key khả dụng (tất cả 429/503) → ném lỗi cuối để controller formatAIError xử lý.
     throw lastErr;
   }
 }

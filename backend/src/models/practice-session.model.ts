@@ -3,6 +3,11 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IPracticeSessionDocument extends Document {
   userId: mongoose.Types.ObjectId;
   topicIds: mongoose.Types.ObjectId[];
+  // Liên kết tùy chọn tới 1 chặng lộ trình — khi phiên được tạo từ màn học chặng.
+  // Dùng để hiện tên chặng + tự đánh dấu hoàn thành chặng khi kết thúc phiên.
+  learningPathId?: mongoose.Types.ObjectId;
+  milestoneId?: mongoose.Types.ObjectId;
+  label?: string;
   mode: 'adaptive' | 'exam_simulation';
   settings: {
     questionCount: number;
@@ -97,6 +102,20 @@ const PracticeSessionSchema = new Schema<IPracticeSessionDocument>(
         required: [true, 'At least one topic is required'],
       },
     ],
+    // Liên kết chặng lộ trình (tùy chọn).
+    learningPathId: {
+      type: Schema.Types.ObjectId,
+      ref: 'LearningPath',
+      default: null,
+    },
+    milestoneId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+    },
+    label: {
+      type: String,
+      default: null,
+    },
     mode: {
       type: String,
       enum: ['adaptive', 'exam_simulation'],

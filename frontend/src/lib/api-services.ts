@@ -49,8 +49,11 @@ export const authApi = {
 // ----- Subjects -----
 
 export const subjectApi = {
-  list: async () => {
-    const res = await api.get<Envelope<{ subjects: Subject[] }>>('/subjects');
+  // withTopics=true để lấy kèm mảng topics (cho UI chọn chủ đề). Mặc định
+  // backend chỉ trả topicCount để response nhẹ.
+  list: async (params?: { withTopics?: boolean }) => {
+    const query = params?.withTopics ? '?withTopics=true' : '';
+    const res = await api.get<Envelope<{ subjects: Subject[] }>>(`/subjects${query}`);
     return unwrap(res.data).subjects;
   },
   get: async (id: string) => {
@@ -192,10 +195,16 @@ export const practiceApi = {
     topicIds?: string[];
     mode: 'adaptive' | 'exam_simulation';
     questionCount: number;
+    // Liên kết chặng lộ trình (tùy chọn) — để hiện tên chặng + tự tick khi xong.
+    learningPathId?: string;
+    milestoneId?: string;
+    label?: string;
   }) => {
+    const { questionCount, topicIds, ...rest } = input;
     const res = await api.post<Envelope<{ session: PracticeSession }>>(
       '/practice-sessions',
-      input,
+      // Backend nhận topicIds + settings.questionCount.
+      { ...rest, topicIds, settings: { questionCount } },
     );
     return unwrap(res.data).session;
   },

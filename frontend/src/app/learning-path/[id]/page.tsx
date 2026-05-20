@@ -230,12 +230,10 @@ function LearningPathDetailInner({ id }: { id: string }) {
               const done = isMilestoneDone(m);
               return (() => {
                   const resumeId = findInProgressFor(m.topicIds);
+                  // Có phiên dở → tiếp tục thẳng; chưa có → mở màn học nội dung của chặng.
                   const href = resumeId
                     ? `/practice/${resumeId}`
-                    : `/practice/new?subjectId=${path.subjectId}` +
-                      (m.topicIds.length > 0
-                        ? `&topicIds=${m.topicIds.join(',')}&mode=adaptive`
-                        : '&mode=adaptive');
+                    : `/learning-path/${id}/study?m=${idx}`;
                   // Khi không có topics + resources → ẩn CardContent để card gọn.
                   const hasExtraContent = m.topicIds.length > 0 || m.resources.length > 0;
                   return (
@@ -248,21 +246,27 @@ function LearningPathDetailInner({ id }: { id: string }) {
                       }`}
                     >
                       <CardHeader className={hasExtraContent ? 'pb-2' : ''}>
-                        <div className="flex items-center justify-between gap-3">
-                          <CardTitle className="text-lg">
-                            {m.title || `Tuần ${idx + 1}`}
-                          </CardTitle>
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between gap-4">
+                          {/* Trái: tiêu đề + metadata (độ khó, số ngày) gom thành 1 cụm */}
+                          <div className="min-w-0 space-y-1.5">
+                            <CardTitle className="text-lg leading-snug">
+                              {m.title || `Tuần ${idx + 1}`}
+                            </CardTitle>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant={diff.variant}>{diff.label}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                ~{m.estimatedDays} ngày
+                              </span>
+                            </div>
+                          </div>
+                          {/* Phải: nút hành động + checkbox, không co lại khi title dài */}
+                          <div className="flex shrink-0 items-center gap-2">
                             <Button asChild size="sm" className="gap-1.5 h-8">
                               <Link href={href}>
                                 <Play className="h-3.5 w-3.5" />
                                 {resumeId ? 'Tiếp tục' : 'Bắt đầu'}
                               </Link>
                             </Button>
-                            <Badge variant={diff.variant}>{diff.label}</Badge>
-                            <span className="text-xs text-muted-foreground">
-                              ~{m.estimatedDays} ngày
-                            </span>
                             <button
                               type="button"
                               disabled={isUpdating}
@@ -284,7 +288,7 @@ function LearningPathDetailInner({ id }: { id: string }) {
                         </div>
                       </CardHeader>
                       {hasExtraContent && (
-                        <CardContent className="space-y-2 pt-0 pb-4">
+                        <CardContent className="space-y-3 border-t pt-3 pb-4">
                           {/* Topics */}
                           {m.topicIds.length > 0 && (
                             <div>

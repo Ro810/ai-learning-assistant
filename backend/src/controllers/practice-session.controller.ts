@@ -1,12 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import mongoose from 'mongoose';
-import { PracticeSession } from '../models/practice-session.model';
+import { PracticeSession, IPracticeSessionDocument } from '../models/practice-session.model';
+import { LearningPath } from '../models/learning-path.model';
 import { Question } from '../models/question.model';
 import { User } from '../models/user.model';
 import { Subject } from '../models/subject.model';
 import { Assessment } from '../models/assessment.model';
 import { selectQuestions } from '../services/practice-question-selector.service';
+import { formatAIError } from '../services/ai-error-formatter';
 import {
   applyAdaptive,
   computePracticeResults,
@@ -16,6 +18,10 @@ const createSessionSchema = z.object({
   topicIds: z.array(z.string()).min(1),
   mode: z.enum(['adaptive', 'exam_simulation']).optional(),
   subjectId: z.string().optional(),
+  // Liên kết chặng lộ trình (tùy chọn) — khi tạo từ màn học chặng.
+  learningPathId: z.string().min(1).optional(),
+  milestoneId: z.string().min(1).optional(),
+  label: z.string().min(1).max(200).optional(),
   settings: z
     .object({
       questionCount: z.number().int().min(1).max(50).optional(),
@@ -32,24 +38,85 @@ const answerSchema = z.object({
   hintUsed: z.boolean().optional(),
 });
 
-// Build a public-facing question payload — strip correctAnswer + per-option
-// isCorrect flags so the client never sees the key while practising.
-const toPublicQuestion = (q: any, order: number) => {
-  const content = q.content ?? {};
-  const { correctAnswer, ...rest } = content;
-  return {
-    questionId: q._id,
-    order,
-    content: {
-      ...rest,
-      options: (rest.options ?? []).map((opt: any) => {
-        const { isCorrect, ...optRest } = opt;
-        return optRest;
-      }),
-    },
-    difficulty: q.difficulty,
-    topicIds: q.topicIds,
-  };
+// Serialize 1 phiên luyện tập về đúng shape FE cần: mỗi câu hỏi gắn
+// questionSnapshot.content (join nội dung từ Question collection theo questionId).
+// ẨN đáp án đúng (correctAnswer + option.isCorrect) khi phiên CHƯA hoàn thành để
+// tránh lộ đáp án; LỘ khi đã 'completed' để màn kết quả review đúng/sai.
+const serializePracticeSession = async (session: IPracticeSessionDocument) => {
+  const reveal = session.status === 'completed';
+  const qIds = session.questions.map((q) => q.questionId);
+  const docs = await Question.find({ _id: { $in: qIds } }).lean();
+  const byId = new Map<string, any>(docs.map((d: any) => [d._id.toString(), d]));
+
+  const obj: any = session.toObject();
+  obj.questions = session.questions.map((sq: any) => {
+    const doc = byId.get(sq.questionId.toString());
+    const rawContent = doc?.content ?? {};
+    const options = (rawContent.options ?? []).map((opt: any) => {
+      if (reveal) return opt;
+      const { isCorrect, ...rest } = opt;
+      return rest;
+    });
+    return {
+      questionId: sq.questionId,
+      order: sq.order,
+      userAnswer: sq.userAnswer ?? null,
+      isCorrect: sq.isCorrect ?? null,
+      timeSpentSeconds: sq.timeSpentSeconds ?? null,
+      questionSnapshot: {
+        content: {
+          questionText: rawContent.questionText,
+          options,
+          ...(reveal
+            ? { correctAnswer: rawContent.correctAnswer, explanation: rawContent.explanation }
+            : {}),
+        },
+      },
+    };
+  });
+
+  // Remap results sang shape FE cần (accuracy 0-1, totalCorrect/totalQuestions).
+  // Model lưu accuracyPercent (0-100) + không có total* nên phải tính lại ở đây.
+  if (session.results) {
+    const totalQuestions = session.questions.length;
+    const totalCorrect = session.questions.filter((q) => q.isCorrect).length;
+    obj.results = {
+      score: session.results.score,
+      accuracy: totalQuestions > 0 ? totalCorrect / totalQuestions : 0,
+      totalCorrect,
+      totalQuestions,
+      avgTimePerQuestion: session.results.avgTimePerQuestion,
+    };
+  }
+  return obj;
+};
+
+// Đánh dấu chặng lộ trình hoàn thành khi phiên luyện tập (gắn chặng) kết thúc.
+// Tìm milestone theo milestoneId, set completedAt + completionRate=100, rồi tính
+// lại progressPercent + status của path. No-op nếu phiên không gắn chặng.
+const markMilestoneCompleteIfLinked = async (
+  session: IPracticeSessionDocument,
+  userObjId: mongoose.Types.ObjectId,
+): Promise<void> => {
+  if (!session.learningPathId || !session.milestoneId) return;
+
+  const path = await LearningPath.findOne({ _id: session.learningPathId, userId: userObjId });
+  if (!path) return;
+
+  const milestone = path.milestones.find(
+    (m: any) => m._id?.toString() === session.milestoneId!.toString(),
+  );
+  if (!milestone) return;
+
+  milestone.completedAt = new Date();
+  milestone.completionRate = 100;
+
+  const total = path.milestones.length;
+  const done = path.milestones.filter((m) => m.completionRate === 100).length;
+  path.progressPercent = total > 0 ? Math.round((done / total) * 100) : 0;
+  if (path.progressPercent === 100) path.status = 'completed';
+
+  await path.save();
 };
 
 export const createSession = async (
@@ -84,7 +151,7 @@ export const createSession = async (
       });
     }
 
-    const { topicIds, subjectId } = parsed.data;
+    const { topicIds, subjectId, learningPathId, milestoneId, label } = parsed.data;
     const mode = parsed.data.mode ?? 'adaptive';
     const settings = {
       questionCount: parsed.data.settings?.questionCount ?? 10,
@@ -101,10 +168,14 @@ export const createSession = async (
         subjectId,
       });
     } catch (err: any) {
-      return res.status(502).json({
+      // Bank trống + AI sinh câu hỏi lỗi → format thành message thân thiện
+      // (429 hết quota, 503 quá tải, ...) thay vì lỗi kỹ thuật chung chung.
+      const formatted = formatAIError(err);
+      console.error('[PracticeCtrl] Question selection failed:', formatted.detail);
+      return res.status(formatted.status).json({
         success: false,
-        message: 'Question selection failed (bank empty + AI generation failed)',
-        error: err?.message,
+        message: formatted.message,
+        ...(formatted.retryAfterSec ? { retryAfterSec: formatted.retryAfterSec } : {}),
       });
     }
 
@@ -118,6 +189,10 @@ export const createSession = async (
     const session = await PracticeSession.create({
       userId: userObjId,
       topicIds: topicIds.map((id) => new mongoose.Types.ObjectId(id)),
+      // Liên kết chặng lộ trình nếu phiên được tạo từ màn học chặng.
+      learningPathId: learningPathId ? new mongoose.Types.ObjectId(learningPathId) : null,
+      milestoneId: milestoneId ? new mongoose.Types.ObjectId(milestoneId) : null,
+      label: label ?? null,
       mode,
       settings,
       questions: questions.map((q: any, idx: number) => ({
@@ -133,10 +208,7 @@ export const createSession = async (
 
     res.status(201).json({
       success: true,
-      data: {
-        session,
-        questions: questions.map((q: any, idx: number) => toPublicQuestion(q, idx)),
-      },
+      data: { session: await serializePracticeSession(session) },
     });
   } catch (error) {
     next(error);
@@ -216,6 +288,8 @@ export const submitAnswer = async (
     res.json({
       success: true,
       data: {
+        // FE setSession(updated) → cần session đầy đủ (đã ẩn đáp án vì còn in_progress).
+        session: await serializePracticeSession(session),
         isCorrect,
         explanation: question.content?.explanation ?? '',
         currentDifficulty: session.adaptiveState.currentDifficulty,
@@ -248,7 +322,7 @@ export const finishSession = async (
     // Idempotent — finishing an already-completed session returns the cached
     // results without re-mutating the user's weak-topic list.
     if (session.status === 'completed' && session.results) {
-      return res.json({ success: true, data: { session } });
+      return res.json({ success: true, data: { session: await serializePracticeSession(session) } });
     }
 
     if (session.status === 'abandoned') {
@@ -282,7 +356,11 @@ export const finishSession = async (
       );
     }
 
-    res.json({ success: true, data: { session } });
+    // Nếu phiên gắn với 1 chặng lộ trình → tự đánh dấu chặng hoàn thành + cập nhật
+    // tiến độ path, để user không phải tick tay sau khi làm xong.
+    await markMilestoneCompleteIfLinked(session, userObjId);
+
+    res.json({ success: true, data: { session: await serializePracticeSession(session) } });
   } catch (error) {
     next(error);
   }
@@ -386,7 +464,7 @@ export const getSessionById = async (
       return res.status(404).json({ success: false, message: 'Session not found' });
     }
 
-    res.json({ success: true, data: { session } });
+    res.json({ success: true, data: { session: await serializePracticeSession(session) } });
   } catch (error) {
     next(error);
   }

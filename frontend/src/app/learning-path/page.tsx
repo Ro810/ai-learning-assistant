@@ -71,7 +71,8 @@ function LearningPathListInner() {
     (async () => {
       try {
         const [subjectsData, pathsData, assessData] = await Promise.all([
-          subjectApi.list(),
+          // withTopics để biết số chủ đề mỗi môn → cảnh báo deadline quá ngắn.
+          subjectApi.list({ withTopics: true }),
           learningPathApi.list().catch(() => [] as LearningPathSummary[]),
           assessmentApi.list({ status: 'completed' }).catch(() => [] as AssessmentSummary[]),
         ]);
@@ -104,6 +105,12 @@ function LearningPathListInner() {
   const subjectAssessments = useMemo(
     () => completedAssessments.filter((a) => a.subjectId === formSubjectId),
     [completedAssessments, formSubjectId],
+  );
+
+  // Môn đang chọn — để biết số chủ đề (mỗi chủ đề = 1 chặng) khi cảnh báo deadline.
+  const currentFormSubject = useMemo(
+    () => subjects.find((s) => s._id === formSubjectId) ?? null,
+    [subjects, formSubjectId],
   );
 
   // Reset danh sách bài đã tick khi đổi môn.
@@ -335,17 +342,22 @@ function LearningPathListInner() {
                   disabled={submitting}
                 />
                 {(() => {
-                  // Backend cap milestone tối đa 16 tuần — báo trước để user biết
-                  // ngày quá xa sẽ bị dồn lại 16 milestone thay vì sinh hàng chục tuần.
+                  // Mỗi chủ đề = 1 chặng (~tối thiểu 1 ngày/chặng), cap 30 chặng.
+                  // Cảnh báo khi deadline ngắn hơn số chặng → lộ trình bị dồn cục.
                   if (!formDate) return null;
                   const days = Math.ceil(
                     (new Date(formDate).getTime() - Date.now()) / 86_400_000,
                   );
-                  const weeks = Math.ceil(days / 7);
-                  if (weeks > 16) {
+                  const topicCount = currentFormSubject?.topics?.length ?? 0;
+                  const milestoneCount = Math.min(topicCount, 30);
+                  if (milestoneCount > 0 && days < milestoneCount) {
+                    // Nhịp phải học = số chặng / số ngày (làm tròn lên).
+                    const pace = Math.ceil(milestoneCount / days);
                     return (
                       <p className="text-xs text-amber-600">
-                        Khoảng {weeks} tuần — lộ trình sẽ chỉ có tối đa 16 chặng (mỗi chặng phủ nhiều tuần).
+                        Môn này có {topicCount} chủ đề ({milestoneCount} chặng) nhưng chỉ còn {days} ngày
+                        đến mục tiêu — bạn sẽ phải học ~{pace} chặng/ngày (khá gấp). Nên chọn ngày xa hơn
+                        (ít nhất ~{milestoneCount} ngày) để mỗi ngày học 1 chặng.
                       </p>
                     );
                   }

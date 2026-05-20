@@ -129,8 +129,10 @@ function ActiveSessionView({
   onAbandon: () => Promise<void>;
 }) {
   const questions = session.questions;
+  const allAnswered = questions.length > 0 && questions.every((q) => q.userAnswer != null);
   const currentIdx = findCurrentQuestionIdx(questions);
-  const currentQ = questions[currentIdx];
+  // Khi đã trả lời hết → không hiện câu nào nữa (để rơi vào màn "đã xong" bên dưới).
+  const currentQ = allAnswered ? undefined : questions[currentIdx];
   const [selected, setSelected] = useState<string>('');
   const [answering, setAnswering] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -143,6 +145,7 @@ function ActiveSessionView({
   const diff = difficultyLabels[session.adaptiveState.currentDifficulty] ?? { label: '—', variant: 'secondary' as const };
 
   const handleNext = async () => {
+    if (!currentQ) return;
     if (!selected) { toast.error('Vui lòng chọn đáp án.'); return; }
     setAnswering(true);
     try {
@@ -366,7 +369,8 @@ function PracticeSessionInner({ id }: { id: string }) {
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-6 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-xl font-semibold">Phiên luyện tập</h1>
+          {/* Tên chặng lộ trình nếu phiên gắn chặng; nếu không thì tiêu đề chung. */}
+          <h1 className="text-xl font-semibold">{session.label || 'Phiên luyện tập'}</h1>
           <Badge variant="outline">{modeLabel}</Badge>
         </div>
 

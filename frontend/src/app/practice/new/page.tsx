@@ -36,7 +36,7 @@ function NewPracticeInner() {
   useEffect(() => {
     let active = true;
     subjectApi
-      .list()
+      .list({ withTopics: true })
       .then((data) => {
         if (!active) return;
         setSubjects(data);
@@ -137,7 +137,7 @@ function NewPracticeInner() {
             </Card>
 
             {/* Topics */}
-            {currentSubject && currentSubject.topics.length > 0 && (
+            {currentSubject && (currentSubject.topics?.length ?? 0) > 0 && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">

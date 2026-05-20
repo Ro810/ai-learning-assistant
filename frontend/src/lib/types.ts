@@ -195,6 +195,10 @@ export interface PracticeSession {
   _id: string;
   userId: string;
   subjectId: string;
+  // Liên kết chặng lộ trình (nếu phiên tạo từ màn học chặng).
+  learningPathId?: string | null;
+  milestoneId?: string | null;
+  label?: string | null;
   mode: 'adaptive' | 'exam_simulation';
   status: 'in_progress' | 'completed' | 'abandoned';
   adaptiveState: {
