@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { learningPathGenerator } from '../services/learning-path-generator.service';
+import { formatAIError } from '../services/ai-error-formatter';
 import { LearningPath } from '../models/learning-path.model';
 import { Assessment } from '../models/assessment.model';
 import mongoose from 'mongoose';
@@ -112,13 +113,26 @@ export const createLearningPath = async (
       });
     }
 
-    const learningPath = await learningPathGenerator.generate({
-      subjectId,
-      assessmentIds: idList,
-      targetDate,
-      targetLevel,
-      weeklyStudyHours: weeklyStudyHours ?? 10,
-    }, userId);
+    let learningPath;
+    try {
+      learningPath = await learningPathGenerator.generate({
+        subjectId,
+        assessmentIds: idList,
+        targetDate,
+        targetLevel,
+        weeklyStudyHours: weeklyStudyHours ?? 10,
+      }, userId);
+    } catch (err: any) {
+      // AI provider (Gemini) lỗi → format thành response thân thiện (429 quota, 503, ...)
+      // thay vì rơi vào error handler generic "Internal server error".
+      const formatted = formatAIError(err);
+      console.error('[LearningPathCtrl] AI generate failed:', formatted.detail);
+      return res.status(formatted.status).json({
+        success: false,
+        message: formatted.message,
+        ...(formatted.retryAfterSec ? { retryAfterSec: formatted.retryAfterSec } : {}),
+      });
+    }
 
     res.status(201).json({
       success: true,
