@@ -4,6 +4,8 @@ import { IUser } from '../types';
 
 export interface IUserDocument extends IUser, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
+  resetTokenHash?: string | null;
+  resetTokenExpires?: Date | null;
 }
 
 const UserSchema = new Schema<IUserDocument>(
@@ -62,6 +64,18 @@ const UserSchema = new Schema<IUserDocument>(
       // Topic IDs are subdocument _ids inside Subject.topics — no Mongoose ref
       // (populate must be done manually by querying the parent Subject)
       weakTopics: [Schema.Types.ObjectId],
+    },
+    // Quên mật khẩu: lưu HASH (sha256) của token reset + hạn dùng. Token thô chỉ
+    // gửi cho user qua link, không lưu DB. select:false để không lộ khi query thường.
+    resetTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    resetTokenExpires: {
+      type: Date,
+      default: null,
+      select: false,
     },
   },
   {

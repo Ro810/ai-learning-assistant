@@ -11,7 +11,6 @@ import axios from 'axios';
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
@@ -26,6 +25,8 @@ function WeaknessInner() {
   const [error, setError] = useState<string | null>(null);
   // topicId đang tạo phiên — để disable nút + hiện trạng thái.
   const [startingId, setStartingId] = useState<string | null>(null);
+  // subjectId đang tạo phiên ôn câu sai (null = không).
+  const [reviewingSubject, setReviewingSubject] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +70,41 @@ function WeaknessInner() {
     }
   };
 
+  // Tạo phiên ôn lại câu sai CỦA 1 MÔN → vào thẳng bài.
+  const handleReviewWrong = async (subjectId: string) => {
+    if (reviewingSubject) return;
+    setReviewingSubject(subjectId);
+    try {
+      const session = await practiceApi.reviewWrong(subjectId);
+      router.push(`/practice/${session._id}`);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        const existingId = (err.response.data as { data?: { existingId?: string } })?.data?.existingId;
+        if (existingId) {
+          toast.info('Bạn còn 1 bài đang làm dở — tiếp tục bài đó.');
+          router.push(`/practice/${existingId}`);
+          return;
+        }
+      }
+      toast.error(getErrorMessage(err));
+      setReviewingSubject(null);
+    }
+  };
+
+  // Nhóm chủ đề yếu theo môn để hiện nút "Ôn câu sai" riêng từng môn.
+  const groupedBySubject = items
+    .slice()
+    .sort((a, b) => a.rate - b.rate)
+    .reduce<Record<string, { subjectName: string; topics: WeakTopicItem[] }>>(
+      (acc, item) => {
+        const key = item.subjectId;
+        if (!acc[key]) acc[key] = { subjectName: item.subjectName ?? 'Môn học', topics: [] };
+        acc[key].topics.push(item);
+        return acc;
+      },
+      {},
+    );
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -88,7 +124,7 @@ function WeaknessInner() {
         <section>
           <h1 className="text-2xl font-semibold">Điểm yếu của bạn</h1>
           <p className="text-sm text-muted-foreground">
-            Các chủ đề có độ chính xác dưới 50% — cần luyện tập thêm.
+            Các chủ đề có độ chính xác dưới 50% — cần luyện tập thêm. Ôn câu sai theo từng môn.
           </p>
         </section>
 
@@ -120,56 +156,64 @@ function WeaknessInner() {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3">
-            {items
-              .sort((a, b) => a.rate - b.rate) // worst first
-              .map((item) => {
-                const pct = Math.round(item.rate * 100);
-                return (
-                  <Card key={item.topicId}>
-                    <CardContent className="flex items-center justify-between py-4">
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium truncate">
+          <div className="space-y-6">
+            {Object.entries(groupedBySubject).map(([subjectId, group]) => (
+              <section key={subjectId} className="space-y-3">
+                {/* Header môn + nút ôn câu sai riêng môn này */}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-lg font-semibold">{group.subjectName}</h2>
+                  <Button
+                    size="sm"
+                    onClick={() => handleReviewWrong(subjectId)}
+                    disabled={reviewingSubject !== null}
+                    className="shrink-0"
+                  >
+                    {reviewingSubject === subjectId ? 'Đang tạo...' : 'Ôn câu sai môn này'}
+                  </Button>
+                </div>
+
+                {group.topics.map((item) => {
+                  const pct = Math.round(item.rate * 100);
+                  return (
+                    <Card key={item.topicId}>
+                      <CardContent className="flex items-center justify-between py-4">
+                        <div className="space-y-1 min-w-0">
+                          <span className="font-medium truncate block">
                             {item.topicName ?? item.topicId.slice(-6)}
                           </span>
-                          {item.subjectName && (
-                            <Badge variant="outline" className="text-xs">
-                              {item.subjectName}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            {item.correct}/{item.total} câu đúng
-                          </span>
-                          {/* Accuracy bar */}
-                          <div className="flex items-center gap-1">
-                            <div className="h-1.5 w-20 rounded-full bg-muted">
-                              <div
-                                className="h-1.5 rounded-full bg-destructive transition-all"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-medium text-destructive">
-                              {pct}%
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground">
+                              {item.correct}/{item.total} câu đúng
                             </span>
+                            {/* Accuracy bar */}
+                            <div className="flex items-center gap-1">
+                              <div className="h-1.5 w-20 rounded-full bg-muted">
+                                <div
+                                  className="h-1.5 rounded-full bg-destructive transition-all"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-medium text-destructive">
+                                {pct}%
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handlePractice(item)}
-                        disabled={startingId !== null}
-                        className="shrink-0 ml-3"
-                      >
-                        {startingId === item.topicId ? 'Đang tạo...' : 'Luyện tập'}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePractice(item)}
+                          disabled={startingId !== null}
+                          className="shrink-0 ml-3"
+                        >
+                          {startingId === item.topicId ? 'Đang tạo...' : 'Luyện tập'}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </section>
+            ))}
           </div>
         )}
       </main>

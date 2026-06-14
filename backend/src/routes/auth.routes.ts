@@ -281,4 +281,83 @@ router.patch('/email', authMiddleware, async (req: Request, res: Response) => {
   }
 });
 
+// ----- Quên mật khẩu / đặt lại -----
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email format'),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Token is required'),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset link
+ *     tags: [Auth]
+ */
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  const validation = forgotPasswordSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      errors: validation.error.errors,
+    });
+  }
+  try {
+    const rawToken = await authService.requestPasswordReset(validation.data.email);
+
+    // Chưa cấu hình SMTP → ở dev trả thẳng link để test; production nên gửi email
+    // và KHÔNG trả token. Thông điệp luôn như nhau để không lộ email tồn tại.
+    const isProd = process.env.NODE_ENV === 'production';
+    const base = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const data =
+      !isProd && rawToken
+        ? { resetUrl: `${base}/reset-password?token=${rawToken}` }
+        : undefined;
+    if (rawToken) {
+      console.log('[Auth] Password reset requested. Dev link:',
+        `${base}/reset-password?token=${rawToken}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'Nếu email tồn tại, link đặt lại mật khẩu đã được gửi.',
+      ...(data ? { data } : {}),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Request failed';
+    res.status(400).json({ success: false, message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password using a valid token
+ *     tags: [Auth]
+ */
+router.post('/reset-password', async (req: Request, res: Response) => {
+  const validation = resetPasswordSchema.safeParse(req.body);
+  if (!validation.success) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation error',
+      errors: validation.error.errors,
+    });
+  }
+  try {
+    await authService.resetPassword(validation.data.token, validation.data.newPassword);
+    res.json({ success: true, message: 'Đặt lại mật khẩu thành công. Hãy đăng nhập lại.' });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Reset failed';
+    res.status(400).json({ success: false, message });
+  }
+});
+
 export default router;

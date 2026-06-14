@@ -44,6 +44,17 @@ export const authApi = {
   changePassword: async (input: { currentPassword: string; newPassword: string }) => {
     await api.patch('/auth/password', input);
   },
+  // Quên mật khẩu: yêu cầu gửi link. Dev (chưa có SMTP) trả về resetUrl để test.
+  forgotPassword: async (email: string) => {
+    const res = await api.post<Envelope<{ resetUrl?: string }>>(
+      '/auth/forgot-password',
+      { email },
+    );
+    return unwrap(res.data);
+  },
+  resetPassword: async (input: { token: string; newPassword: string }) => {
+    await api.post('/auth/reset-password', input);
+  },
 };
 
 // ----- Subjects -----
@@ -221,6 +232,14 @@ export const practiceApi = {
   finish: async (id: string) => {
     const res = await api.post<Envelope<{ session: PracticeSession }>>(
       `/practice-sessions/${id}/finish`,
+    );
+    return unwrap(res.data).session;
+  },
+  // Ôn lại câu sai THEO MÔN — backend gom câu sai của môn đó từ các bài đã hoàn thành.
+  reviewWrong: async (subjectId: string) => {
+    const res = await api.post<Envelope<{ session: PracticeSession }>>(
+      '/practice-sessions/review-wrong',
+      { subjectId },
     );
     return unwrap(res.data).session;
   },

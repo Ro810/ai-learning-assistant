@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   createSession,
+  createReviewSession,
   submitAnswer,
   finishSession,
   abandonSession,
@@ -54,6 +55,9 @@ router.use(authMiddleware);
  *       502: { description: Question selection failed }
  */
 router.post('/', createSession);
+
+// Ôn lại câu sai — gom câu trả lời sai từ các bài đã hoàn thành.
+router.post('/review-wrong', createReviewSession);
 
 /**
  * @swagger

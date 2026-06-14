@@ -11,7 +11,6 @@ import {
   ArrowRight,
   BookOpen,
   ChevronRight,
-  Flame,
   GraduationCap,
   PlayCircle,
   Target,
@@ -21,6 +20,7 @@ import {
 import { ProtectedRoute } from '@/components/protected-route';
 import { AppHeader } from '@/components/app-header';
 import { AssessmentHistoryModal } from '@/components/assessment-history-modal';
+import { StreakBadge } from '@/components/streak-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -82,7 +82,7 @@ function greetingByHour(): string {
 }
 
 function Divider() {
-  return <div className="h-px bg-zinc-200/80" />;
+  return <div className="h-px bg-zinc-200/80 dark:bg-zinc-700" />;
 }
 
 function DashboardInner() {
@@ -209,17 +209,48 @@ function DashboardInner() {
     return { entries, overdueTotal };
   }, [paths, subjects]);
 
+  // Streak = số ngày liên tiếp có hoạt động (đánh giá/luyện tập) tính tới hôm nay.
+  // Nếu hôm nay chưa học nhưng hôm qua có → vẫn tính (streak chưa đứt).
+  const studyStreak = useMemo(() => {
+    const keys = new Set<string>();
+    const k = (iso: Date) => `${iso.getFullYear()}-${iso.getMonth()}-${iso.getDate()}`;
+    const add = (iso?: string | null) => {
+      if (iso) keys.add(k(new Date(iso)));
+    };
+    for (const a of assessments) {
+      add(a.createdAt);
+      add(a.completedAt);
+    }
+    for (const s of sessions) add(s.createdAt);
+
+    const cursor = new Date();
+    if (!keys.has(k(cursor))) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (!keys.has(k(cursor))) return 0;
+    }
+    let streak = 0;
+    while (keys.has(k(cursor))) {
+      streak += 1;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+  }, [assessments, sessions]);
+
   const visibleAssessments = assessments.slice(0, RECENT_LIMIT);
   const hasMoreAssessments = assessments.length > RECENT_LIMIT;
   const greeting = greetingByHour();
   const displayName = user?.profile.name?.trim() || 'bạn';
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
       <AppHeader />
       <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:py-10">
         {/* HERO — greeting + illustration on a wavy white panel */}
-        <section className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-10">
+        <section className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 px-6 py-8 shadow-sm sm:px-10 sm:py-10">
+          {/* Streak badge nổi ở góc trên-phải */}
+          <div className="absolute right-4 top-4 z-20">
+            <StreakBadge streak={studyStreak} />
+          </div>
           {/* Soft wavy decoration bleeding off the right edge */}
           <svg
             aria-hidden
@@ -230,7 +261,7 @@ function DashboardInner() {
           >
             <path
               d="M400 0 H140 C90 110 180 190 120 290 C82 352 150 372 130 400 H400 Z"
-              fill="#f4f4f5"
+              className="fill-zinc-100 dark:fill-zinc-700/40"
             />
           </svg>
 
@@ -239,7 +270,7 @@ function DashboardInner() {
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
                 {greeting}
               </p>
-              <h1 className={`${HEADING} mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 sm:text-4xl`}>
+              <h1 className={`${HEADING} mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-4xl`}>
                 Xin chào, {displayName} 👋
               </h1>
               <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-500">
@@ -249,7 +280,7 @@ function DashboardInner() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Button
                   asChild
-                  className="h-11 rounded-xl bg-zinc-900 px-6 font-semibold hover:bg-zinc-800"
+                  className="h-11 rounded-xl bg-zinc-900 px-6 font-semibold hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
                 >
                   <a href="#mon-hoc">
                     Bắt đầu đánh giá
@@ -294,17 +325,17 @@ function DashboardInner() {
         {inProgress && (
           <Link
             href={inProgress.href}
-            className="group block rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-colors hover:bg-zinc-50 sm:p-6"
+            className="group block rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-5 shadow-sm transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700 sm:p-6"
           >
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
                 <PlayCircle className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs uppercase tracking-wider text-zinc-400">
                   {inProgress.subtitle}
                 </p>
-                <p className="mt-0.5 truncate text-base font-semibold text-zinc-900">
+                <p className="mt-0.5 truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
                   {inProgress.title}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-400">
@@ -331,19 +362,19 @@ function DashboardInner() {
                   `Bạn còn ${weekAgenda.overdueTotal} chặng trễ lịch — nên học sớm.`}
               </EmptyState>
             ) : (
-              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
                 {weekAgenda.entries.slice(0, 6).map((e, idx) => (
                   <div key={e.key}>
                     {idx > 0 && <Divider />}
                     <Link
                       href={e.href}
-                      className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-zinc-50"
+                      className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700"
                     >
                       <Badge variant="outline" className="shrink-0 font-medium">
                         {e.label}
                       </Badge>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-semibold text-zinc-900">{e.title}</p>
+                        <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">{e.title}</p>
                         <p className="mt-0.5 text-xs text-zinc-400">{e.subject}</p>
                       </div>
                       <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
@@ -405,7 +436,7 @@ function DashboardInner() {
             }
           />
           {loading ? (
-            <div className="rounded-3xl border border-zinc-200 bg-white">
+            <div className="rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="px-5 py-4">
                   <Skeleton className="h-10 w-full" />
@@ -417,14 +448,14 @@ function DashboardInner() {
               Chưa có bài đánh giá nào. Chọn một môn ở trên để bắt đầu.
             </EmptyState>
           ) : (
-            <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+            <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
               {visibleAssessments.map((a, idx) => (
                 <div key={a._id}>
                   {idx > 0 && <Divider />}
                   <div className="flex items-center justify-between gap-3 px-5 py-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="truncate font-semibold text-zinc-900">
+                        <span className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
                           {subjectName(a.subjectId)}
                         </span>
                         <StatusBadge status={a.status} />
@@ -434,7 +465,7 @@ function DashboardInner() {
                         {a.results && (
                           <>
                             <span className="mx-1.5">·</span>
-                            <span className="font-medium text-zinc-700">
+                            <span className="font-medium text-zinc-700 dark:text-zinc-300">
                               {a.results.score}/100
                             </span>
                             <span className="ml-1">
@@ -484,16 +515,16 @@ function DashboardInner() {
                 Chưa có lộ trình. Hoàn thành một bài đánh giá để hệ thống tạo lộ trình.
               </EmptyState>
             ) : (
-              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
                 {paths.slice(0, 4).map((p, idx) => (
                   <div key={p._id}>
                     {idx > 0 && <Divider />}
                     <Link
                       href={`/learning-path/${p._id}`}
-                      className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-zinc-50"
+                      className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-700"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-zinc-900">
+                        <p className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
                           {subjectName(p.subjectId)}
                         </p>
                         <p className="mt-1 text-xs text-zinc-400">
@@ -525,14 +556,14 @@ function DashboardInner() {
                 </Link>
               </EmptyState>
             ) : (
-              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 shadow-sm">
                 {sessions.slice(0, 4).map((s, idx) => (
                   <div key={s._id}>
                     {idx > 0 && <Divider />}
                     <div className="flex items-center justify-between gap-3 px-5 py-4">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate font-semibold text-zinc-900">
+                          <span className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
                             {s.label ||
                               (s.mode === 'exam_simulation'
                                 ? 'Mô phỏng đề'
@@ -545,7 +576,7 @@ function DashboardInner() {
                           {s.results?.score !== undefined && (
                             <>
                               <span className="mx-1.5">·</span>
-                              <span className="font-medium text-zinc-700">
+                              <span className="font-medium text-zinc-700 dark:text-zinc-300">
                                 {s.results.score}/100
                               </span>
                             </>
@@ -587,7 +618,7 @@ function SectionHeader({
   return (
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
-        <h2 className={`${HEADING} flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900`}>
+        <h2 className={`${HEADING} flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-100`}>
           {icon && <span className="text-zinc-400">{icon}</span>}
           {title}
         </h2>
@@ -639,7 +670,7 @@ function StatsGrid({
             value={subjectFilter}
             onChange={(e) => setSubjectFilter(e.target.value)}
             disabled={loading || subjects.length === 0}
-            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-700 px-2 py-1.5 text-xs text-zinc-700 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             aria-label="Lọc theo môn"
           >
             <option value="all">Tất cả môn</option>
@@ -658,7 +689,7 @@ function StatsGrid({
         loading={loading}
       />
       <StatCard
-        icon={<Flame className="h-4 w-4" />}
+        icon={<Target className="h-4 w-4" />}
         label="Điểm yếu cần ôn"
         value={stats.weakTopics}
         loading={loading}
@@ -690,7 +721,7 @@ function StatCard({
   const body = (
     <>
       <div className="flex items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
           {icon}
         </span>
         <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
@@ -700,7 +731,7 @@ function StatCard({
       {loading ? (
         <Skeleton className="mt-3 h-9 w-20" />
       ) : (
-        <p className={`${HEADING} mt-3 text-3xl font-extrabold tracking-tight text-zinc-900`}>
+        <p className={`${HEADING} mt-3 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100`}>
           {value}
         </p>
       )}
@@ -709,7 +740,7 @@ function StatCard({
   );
 
   const cls =
-    'rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-all';
+    'rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-5 shadow-sm transition-all';
 
   if (href) {
     return (
@@ -728,16 +759,16 @@ function SubjectCard({ subject }: { subject: Subject }) {
   return (
     <Link
       href={`/subjects/${subject._id}`}
-      className="group flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md"
+      className="group flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md"
     >
       <div className="flex items-center justify-between">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
           <BookOpen className="h-5 w-5" />
         </div>
         <ArrowRight className="h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-0.5" />
       </div>
       <div>
-        <p className={`${HEADING} font-bold tracking-tight text-zinc-900`}>
+        <p className={`${HEADING} font-bold tracking-tight text-zinc-900 dark:text-zinc-100`}>
           {subject.name}
         </p>
         <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
@@ -750,7 +781,7 @@ function SubjectCard({ subject }: { subject: Subject }) {
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-dashed border-zinc-300 bg-white/50 py-10 text-center">
+    <div className="rounded-3xl border border-dashed border-zinc-300 bg-white/50 py-10 text-center dark:border-zinc-700 dark:bg-zinc-800/50">
       <p className="px-4 text-sm text-zinc-500">{children}</p>
     </div>
   );

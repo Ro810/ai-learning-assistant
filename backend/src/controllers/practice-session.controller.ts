@@ -215,6 +215,130 @@ export const createSession = async (
   }
 };
 
+// Tạo phiên "Ôn lại câu sai": gom các câu trả lời sai/chưa làm (isCorrect=false)
+// từ bài đánh giá + phiên luyện ĐÃ hoàn thành, dựng phiên chứa đúng các câu đó.
+export const createReviewSession = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user!.userId;
+    const userObjId = new mongoose.Types.ObjectId(userId);
+
+    // Ôn câu sai theo TỪNG MÔN — bắt buộc subjectId để không trộn Python với Tiếng Anh.
+    const subjectId = req.body?.subjectId;
+    if (!subjectId || !mongoose.Types.ObjectId.isValid(subjectId)) {
+      return res.status(400).json({ success: false, message: 'Thiếu hoặc sai subjectId' });
+    }
+
+    // Tập topicId thuộc môn này — để lọc câu sai đúng môn.
+    const subject = await Subject.findById(subjectId).select('topics._id').lean();
+    if (!subject) {
+      return res.status(404).json({ success: false, message: 'Subject not found' });
+    }
+    const subjectTopicSet = new Set(
+      (subject.topics ?? []).map((t: any) => t._id.toString()),
+    );
+
+    // Single in-progress guard (giống createSession).
+    const existing = await PracticeSession.findOne({
+      userId: userObjId,
+      status: 'in_progress',
+    }).select('_id');
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        message: 'Bạn còn 1 bài đang làm dở, hoàn thành hoặc hủy trước.',
+        data: { existingId: existing._id },
+      });
+    }
+
+    // Gom câu sai từ assessment + practice đã hoàn thành (mới nhất trước), dedupe.
+    const [assessments, sessions] = await Promise.all([
+      Assessment.find({ userId: userObjId, status: 'completed' })
+        .select('questions completedAt')
+        .sort({ completedAt: -1 })
+        .lean(),
+      PracticeSession.find({ userId: userObjId, status: 'completed' })
+        .select('questions completedAt')
+        .sort({ completedAt: -1 })
+        .lean(),
+    ]);
+
+    const wrongIds: string[] = [];
+    const seen = new Set<string>();
+    const collect = (questions: any[] = []) => {
+      for (const q of questions) {
+        if (q?.isCorrect === false) {
+          const key = q.questionId?.toString();
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            wrongIds.push(key);
+          }
+        }
+      }
+    };
+    for (const a of assessments) collect(a.questions);
+    for (const s of sessions) collect(s.questions);
+
+    if (wrongIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa có câu sai nào để ôn trong môn này. Hãy làm vài bài trước nhé.',
+      });
+    }
+
+    // Load câu còn tồn tại + topicIds, rồi LỌC theo môn (topic thuộc subjectTopicSet).
+    const objIds = wrongIds.map((id) => new mongoose.Types.ObjectId(id));
+    const qDocs = await Question.find({ _id: { $in: objIds } })
+      .select('_id topicIds')
+      .lean();
+    const byId = new Map(qDocs.map((q: any) => [q._id.toString(), q]));
+
+    const MAX_REVIEW = 20;
+    // Giữ thứ tự ưu tiên (mới nhất trước), chỉ giữ câu thuộc môn, cap 20.
+    const ordered = wrongIds
+      .map((id) => byId.get(id))
+      .filter(
+        (q: any) =>
+          q && (q.topicIds ?? []).some((t: any) => subjectTopicSet.has(t.toString())),
+      )
+      .slice(0, MAX_REVIEW) as any[];
+
+    if (ordered.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chưa có câu sai nào để ôn trong môn này (có thể đã bị xóa).',
+      });
+    }
+
+    // topicIds của phiên = các topic (thuộc môn) của câu được chọn.
+    const topicSet = new Set<string>();
+    for (const q of ordered)
+      for (const t of q.topicIds ?? [])
+        if (subjectTopicSet.has(t.toString())) topicSet.add(t.toString());
+    const topicIds = Array.from(topicSet).map((t) => new mongoose.Types.ObjectId(t));
+
+    const session = await PracticeSession.create({
+      userId: userObjId,
+      topicIds,
+      mode: 'adaptive',
+      label: 'Ôn lại câu sai',
+      settings: { questionCount: ordered.length, difficultyRange: [1, 3] },
+      questions: ordered.map((q, idx) => ({ questionId: q._id, order: idx })),
+      adaptiveState: { currentDifficulty: 1, consecutiveCorrect: 0, consecutiveWrong: 0 },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: { session: await serializePracticeSession(session) },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const submitAnswer = async (
   req: Request,
   res: Response,

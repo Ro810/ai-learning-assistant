@@ -87,6 +87,15 @@ export default function LoginPage() {
           autoComplete="current-password"
         />
 
+        <div className="text-right">
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
+          >
+            Quên mật khẩu?
+          </Link>
+        </div>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button

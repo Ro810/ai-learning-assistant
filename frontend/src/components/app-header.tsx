@@ -7,6 +7,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Tổng quan' },
@@ -25,15 +26,15 @@ export function AppHeader() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/85 backdrop-blur-md">
+    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/85 backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-900/85">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Logo + nav */}
         <div className="flex min-w-0 items-center gap-4">
           <Link href="/dashboard" className="group flex shrink-0 items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 transition-transform group-hover:scale-105">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 transition-transform group-hover:scale-105 dark:bg-zinc-700">
               <GraduationCapMark />
             </span>
-            <span className="text-sm font-semibold tracking-tight text-zinc-900">
+            <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
               AI Learning Assistant
             </span>
           </Link>
@@ -46,8 +47,8 @@ export function AppHeader() {
                   href={href}
                   className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
                     active
-                      ? 'bg-zinc-900 font-medium text-white'
-                      : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                      ? 'bg-zinc-900 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900'
+                      : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100'
                   }`}
                 >
                   {label}
@@ -57,12 +58,14 @@ export function AppHeader() {
           </nav>
         </div>
 
-        {/* Avatar + name → Profile (logout lives in Profile) */}
-        {user && (
+        {/* Theme toggle + Avatar/name → Profile (logout lives in Profile) */}
+        <div className="flex shrink-0 items-center gap-1">
+          <ThemeToggle />
+          {user && (
           <Link
             href="/profile"
             title="Xem hồ sơ"
-            className="flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm transition hover:bg-zinc-100"
+            className="flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm transition hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             {user.profile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -72,15 +75,16 @@ export function AppHeader() {
                 className="h-9 w-9 rounded-full border border-zinc-200 object-cover"
               />
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white dark:bg-zinc-600">
                 {initialOf(user.profile.name)}
               </div>
             )}
-            <span className="hidden font-medium text-zinc-900 sm:inline">
+            <span className="hidden font-medium text-zinc-900 sm:inline dark:text-zinc-100">
               {user.profile.name || 'Hồ sơ'}
             </span>
           </Link>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Mobile nav */}
@@ -93,8 +97,8 @@ export function AppHeader() {
               href={href}
               className={`shrink-0 rounded-lg px-3 py-1 text-xs transition-colors ${
                 active
-                  ? 'bg-zinc-900 font-medium text-white'
-                  : 'text-zinc-600 hover:bg-zinc-100'
+                  ? 'bg-zinc-900 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900'
+                  : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800'
               }`}
             >
               {label}

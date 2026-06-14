@@ -1,6 +1,14 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { IUserInput, IAuthPayload, IAuthResponse } from '../types';
+
+// Băm token reset trước khi lưu DB (chỉ token thô mới gửi cho user).
+const hashResetToken = (raw: string): string =>
+  crypto.createHash('sha256').update(raw).digest('hex');
+
+// Hạn dùng link reset (phút).
+const RESET_TOKEN_TTL_MINUTES = 30;
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -176,6 +184,48 @@ export class AuthService {
     if (!ok) throw new Error('Invalid current password');
 
     user.passwordHash = await hashPassword(newPassword);
+    await user.save();
+  }
+
+  /**
+   * Yêu cầu đặt lại mật khẩu. Sinh token thô, lưu HASH + hạn vào user.
+   * KHÔNG tiết lộ email tồn tại hay không (luôn trả về như thành công).
+   * Trả token thô để tầng route gửi email; ở môi trường dev (chưa cấu hình SMTP)
+   * route sẽ trả thẳng link cho người dùng test.
+   */
+  async requestPasswordReset(email: string): Promise<string | null> {
+    if (USE_MOCK) {
+      throw new Error('Password reset is not supported in mock mode');
+    }
+    const { User } = await import('../models/user.model');
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return null; // im lặng — không lộ email có tồn tại không
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    user.resetTokenHash = hashResetToken(rawToken);
+    user.resetTokenExpires = new Date(Date.now() + RESET_TOKEN_TTL_MINUTES * 60_000);
+    await user.save();
+    return rawToken;
+  }
+
+  /**
+   * Đặt lại mật khẩu bằng token. Băm token, tìm user khớp hash + còn hạn,
+   * đổi mật khẩu và xóa token. Throw nếu token sai/hết hạn.
+   */
+  async resetPassword(rawToken: string, newPassword: string): Promise<void> {
+    if (USE_MOCK) {
+      throw new Error('Password reset is not supported in mock mode');
+    }
+    const { User, hashPassword } = await import('../models/user.model');
+    const user = await User.findOne({
+      resetTokenHash: hashResetToken(rawToken),
+      resetTokenExpires: { $gt: new Date() },
+    }).select('+resetTokenHash +resetTokenExpires');
+    if (!user) throw new Error('Token không hợp lệ hoặc đã hết hạn');
+
+    user.passwordHash = await hashPassword(newPassword);
+    user.resetTokenHash = null;
+    user.resetTokenExpires = null;
     await user.save();
   }
 
