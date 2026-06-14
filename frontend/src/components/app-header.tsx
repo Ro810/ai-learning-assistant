@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { NotificationBell } from '@/components/notification-bell';
 
 const NAV_LINKS = [
   { href: '/dashboard', label: 'Tổng quan' },
@@ -60,6 +61,7 @@ export function AppHeader() {
 
         {/* Theme toggle + Avatar/name → Profile (logout lives in Profile) */}
         <div className="flex shrink-0 items-center gap-1">
+          {user && <NotificationBell />}
           <ThemeToggle />
           {user && (
           <Link

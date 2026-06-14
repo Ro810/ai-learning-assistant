@@ -30,6 +30,8 @@ export interface WeekTasks {
   todayNum: number;
   weekEnd: number;
   items: WeekTask[];
+  // Các chặng chưa xong đã qua ngày kết thúc (trễ lịch).
+  overdueItems: WeekTask[];
   overdueCount: number;
   allDone: boolean;
 }
@@ -65,7 +67,7 @@ export function computeWeekTasks(path: WeekPath): WeekTasks {
   const weekEnd = todayNum + 6;
 
   const items: WeekTask[] = [];
-  let overdueCount = 0;
+  const overdueItems: WeekTask[] = [];
   let doneCount = 0;
 
   path.milestones.forEach((m, idx) => {
@@ -74,15 +76,17 @@ export function computeWeekTasks(path: WeekPath): WeekTasks {
       return;
     }
     const bound = bounds[idx];
-    if (bound.end < todayNum) overdueCount += 1;
-    else if (bound.start <= weekEnd) items.push({ idx, bound, title: m.title || `Chặng ${idx + 1}` });
+    const task = { idx, bound, title: m.title || `Chặng ${idx + 1}` };
+    if (bound.end < todayNum) overdueItems.push(task);
+    else if (bound.start <= weekEnd) items.push(task);
   });
 
   return {
     todayNum,
     weekEnd,
     items,
-    overdueCount,
+    overdueItems,
+    overdueCount: overdueItems.length,
     allDone: doneCount === path.milestones.length && path.milestones.length > 0,
   };
 }
