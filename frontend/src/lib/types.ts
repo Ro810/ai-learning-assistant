@@ -144,14 +144,18 @@ export interface PracticeSessionSummary {
   // Tên chặng lộ trình (nếu phiên tạo từ màn học chặng) — hiện thay tiêu đề chung.
   label?: string | null;
   // Backend trả kèm subjectId + topicIds (đã bỏ -questions). Dùng để
-  // match phiên đang dở với chặng/lộ trình tương ứng.
+  // match phiên đang dở/đã xong với chặng/lộ trình tương ứng.
   subjectId?: string;
   topicIds?: string[];
+  // Liên kết chặng lộ trình — để hiện điểm chặng đã làm + cho làm lại.
+  learningPathId?: string | null;
+  milestoneId?: string | null;
   results?: {
     score?: number;
     totalCorrect?: number;
     totalQuestions?: number;
   };
+  completedAt?: string | null;
   createdAt: string;
 }
 

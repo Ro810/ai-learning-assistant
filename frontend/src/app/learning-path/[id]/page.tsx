@@ -55,6 +55,8 @@ function LearningPathDetailInner({ id }: { id: string }) {
   const [subject, setSubject] = useState<Subject | null>(null);
   // Phiên luyện đang dở (in_progress) — để biết hiện "Bắt đầu" hay "Tiếp tục".
   const [inProgressSessions, setInProgressSessions] = useState<PracticeSessionSummary[]>([]);
+  // Điểm chặng đã làm: milestoneId → điểm lần mới nhất (để hiện điểm + cho làm lại).
+  const [milestoneScores, setMilestoneScores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingIdx, setUpdatingIdx] = useState<number | null>(null);
@@ -79,6 +81,15 @@ function LearningPathDetailInner({ id }: { id: string }) {
             (s) => s.status === 'in_progress' && s.subjectId === lp.subjectId,
           ),
         );
+        // Điểm chặng = phiên completed gắn milestoneId. List sort startedAt desc nên
+        // bản ghi đầu tiên cho mỗi milestone là lần làm gần nhất.
+        const scores: Record<string, number> = {};
+        for (const s of sessions) {
+          if (s.status !== 'completed' || !s.milestoneId) continue;
+          if (s.milestoneId in scores) continue;
+          if (typeof s.results?.score === 'number') scores[s.milestoneId] = s.results.score;
+        }
+        setMilestoneScores(scores);
       } catch (err) {
         if (active) setError(getErrorMessage(err));
       } finally {
@@ -250,6 +261,9 @@ function LearningPathDetailInner({ id }: { id: string }) {
                   const href = resumeId
                     ? `/practice/${resumeId}`
                     : `/learning-path/${id}/study?m=${idx}`;
+                  // Điểm chặng đã làm (lần gần nhất) — nếu có thì nút thành "Làm lại".
+                  const score = m._id ? milestoneScores[m._id] : undefined;
+                  const hasScore = typeof score === 'number';
                   // Khi không có topics + resources → ẩn CardContent để card gọn.
                   const hasExtraContent = m.topicIds.length > 0 || m.resources.length > 0;
                   return (
@@ -276,6 +290,14 @@ function LearningPathDetailInner({ id }: { id: string }) {
                               <span className="text-xs text-muted-foreground">
                                 ~{m.estimatedDays} ngày
                               </span>
+                              {hasScore && (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-green-100 text-green-900 dark:bg-green-900/40 dark:text-green-100"
+                                >
+                                  Điểm: {score}/100
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           {/* Phải: nút hành động + checkbox, không co lại khi title dài */}
@@ -283,7 +305,7 @@ function LearningPathDetailInner({ id }: { id: string }) {
                             <Button asChild size="sm" className="gap-1.5 h-8">
                               <Link href={href}>
                                 <Play className="h-3.5 w-3.5" />
-                                {resumeId ? 'Tiếp tục' : 'Bắt đầu'}
+                                {resumeId ? 'Tiếp tục' : hasScore ? 'Làm lại' : 'Bắt đầu'}
                               </Link>
                             </Button>
                             <button
