@@ -12,6 +12,8 @@ import userRoutes from './routes/user.routes';
 import packRoutes from './routes/pack.routes';
 import feedbackRoutes from './routes/feedback.routes';
 import aiRoutes from './routes/ai.routes';
+import noteRoutes from './routes/note.routes';
+import bookmarkRoutes from './routes/bookmark.routes';
 import connectDB from './config/database';
 import { swaggerSpec } from './config/swagger';
 
@@ -53,6 +55,8 @@ app.use('/api/learning-paths', learningPathRoutes);
 app.use('/api/packs', packRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/notes', noteRoutes);
+app.use('/api/bookmarks', bookmarkRoutes);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {

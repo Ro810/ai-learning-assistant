@@ -279,6 +279,66 @@ export const aiApi = {
   },
 };
 
+// ----- Notes (ghi chú theo chủ đề) -----
+
+export interface TopicNote {
+  _id?: string;
+  topicId: string;
+  subjectId?: string;
+  content: string;
+  updatedAt?: string;
+}
+
+export const noteApi = {
+  get: async (topicId: string) => {
+    const res = await api.get<Envelope<{ note: TopicNote | null }>>(
+      `/notes?topicId=${topicId}`,
+    );
+    return unwrap(res.data).note;
+  },
+  list: async () => {
+    const res = await api.get<Envelope<{ notes: TopicNote[] }>>('/notes');
+    return unwrap(res.data).notes;
+  },
+  save: async (input: { subjectId: string; topicId: string; content: string }) => {
+    const res = await api.put<Envelope<{ note: TopicNote | null }>>('/notes', input);
+    return unwrap(res.data).note;
+  },
+};
+
+// ----- Bookmarks (đánh dấu câu hỏi) -----
+
+export interface BookmarkItem {
+  _id: string;
+  questionId: string;
+  createdAt: string;
+  content: {
+    questionText: string;
+    options: Array<{ id: string; text: string }>;
+    correctAnswer?: string;
+    explanation?: string;
+  };
+  topicIds: string[];
+  difficulty?: number;
+}
+
+export const bookmarkApi = {
+  toggle: async (questionId: string) => {
+    const res = await api.post<Envelope<{ bookmarked: boolean }>>('/bookmarks/toggle', {
+      questionId,
+    });
+    return unwrap(res.data).bookmarked;
+  },
+  list: async () => {
+    const res = await api.get<Envelope<{ items: BookmarkItem[] }>>('/bookmarks');
+    return unwrap(res.data).items ?? [];
+  },
+  ids: async () => {
+    const res = await api.get<Envelope<{ ids: string[] }>>('/bookmarks/ids');
+    return unwrap(res.data).ids ?? [];
+  },
+};
+
 // ----- Content Feedback (đánh giá chất lượng nội dung Gemini) -----
 
 export type FeedbackTarget = 'question' | 'learning_path';

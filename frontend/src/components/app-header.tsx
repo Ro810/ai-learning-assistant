@@ -15,6 +15,7 @@ const NAV_LINKS = [
   { href: '/learning-path', label: 'Lộ trình' },
   { href: '/practice/new', label: 'Luyện tập' },
   { href: '/weakness', label: 'Điểm yếu' },
+  { href: '/bookmarks', label: 'Đã lưu' },
 ] as const;
 
 const initialOf = (name?: string) => (name?.trim()?.[0] ?? '?').toUpperCase();

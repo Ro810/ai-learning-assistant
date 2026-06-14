@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { assessmentApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import { topicIcon } from '@/lib/topic-icon';
+import { TopicNoteEditor } from '@/components/topic-note-editor';
 import type { Subject } from '@/lib/types';
 
 interface TopicStudyViewProps {
@@ -126,6 +127,9 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
             </ul>
           </div>
         )}
+
+        {/* Ghi chú học tập theo chủ đề */}
+        <TopicNoteEditor subjectId={subjectId} topicId={selected._id} />
 
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div>

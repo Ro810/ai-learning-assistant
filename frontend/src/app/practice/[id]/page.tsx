@@ -20,6 +20,8 @@ import { getErrorMessage } from '@/lib/api-client';
 import { QuestionContent } from '@/components/question-content';
 import { FeedbackButtons } from '@/components/feedback-buttons';
 import { AskAiButton } from '@/components/ask-ai-button';
+import { BookmarkButton } from '@/components/bookmark-button';
+import { bookmarkApi } from '@/lib/api-services';
 import type { PracticeSession, PracticeQuestion } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -38,6 +40,13 @@ function findCurrentQuestionIdx(questions: PracticeQuestion[]): number {
 
 function ResultsView({ session }: { session: PracticeSession }) {
   const r = session.results;
+  // Tập questionId đã bookmark — tô sao đúng trạng thái.
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let active = true;
+    bookmarkApi.ids().then((ids) => active && setBookmarkedIds(new Set(ids))).catch(() => {});
+    return () => { active = false; };
+  }, []);
   return (
     <div className="space-y-6">
       <section>
@@ -110,7 +119,10 @@ function ResultsView({ session }: { session: PracticeSession }) {
                   )}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                     <FeedbackButtons targetType="question" targetId={q.questionId} label="Câu hỏi này:" />
-                    <AskAiButton question={content} />
+                    <div className="flex items-center gap-3">
+                      <BookmarkButton questionId={q.questionId} initial={bookmarkedIds.has(q.questionId)} />
+                      <AskAiButton question={content} />
+                    </div>
                   </div>
                 </CardContent>
               </Card>

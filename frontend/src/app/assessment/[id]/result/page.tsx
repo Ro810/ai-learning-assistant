@@ -18,6 +18,8 @@ import { getErrorMessage } from '@/lib/api-client';
 import { QuestionContent } from '@/components/question-content';
 import { FeedbackButtons } from '@/components/feedback-buttons';
 import { AskAiButton } from '@/components/ask-ai-button';
+import { BookmarkButton } from '@/components/bookmark-button';
+import { bookmarkApi } from '@/lib/api-services';
 import type { Assessment, Subject } from '@/lib/types';
 
 // Ngưỡng điểm coi là "cần cải thiện" — dưới mức này hệ thống gợi ý luyện tập.
@@ -31,9 +33,15 @@ function ResultInner({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   // Trạng thái tạo phiên luyện tập cải thiện (khi điểm thấp).
   const [improving, setImproving] = useState(false);
+  // Tập questionId đã bookmark — để tô sao đúng trạng thái.
+  const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
+    bookmarkApi
+      .ids()
+      .then((ids) => active && setBookmarkedIds(new Set(ids)))
+      .catch(() => {});
     assessmentApi
       .get(id)
       .then(async (data) => {
@@ -254,7 +262,10 @@ function ResultInner({ id }: { id: string }) {
                   )}
                   <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                     <FeedbackButtons targetType="question" targetId={q.questionId} label="Câu hỏi này:" />
-                    <AskAiButton question={q.questionSnapshot.content} />
+                    <div className="flex items-center gap-3">
+                      <BookmarkButton questionId={q.questionId} initial={bookmarkedIds.has(q.questionId)} />
+                      <AskAiButton question={q.questionSnapshot.content} />
+                    </div>
                   </div>
                 </div>
               );
