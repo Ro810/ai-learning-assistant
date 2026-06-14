@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { learningPathApi, practiceApi, subjectApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
+import { buildDayBounds, dayRangeLabel, computeWeekTasks } from '@/lib/learning-path-week';
 import type { LearningPath, PracticeSessionSummary, Subject } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -33,20 +34,6 @@ const levelLabels: Record<string, string> = {
 function formatDate(iso?: string | null) {
   if (!iso) return '—';
   return new Date(iso).toLocaleDateString('vi-VN');
-}
-
-// Khoảng ngày tích lũy cho mỗi chặng dựa trên estimatedDays.
-// Chặng 1 chiếm ngày 1..d1, chặng 2 chiếm ngày (d1+1)..(d1+d2)...
-// 1 ngày → "Ngày 3"; nhiều ngày → "Ngày 4–6".
-function buildDayRanges(milestones: Array<{ estimatedDays: number }>): string[] {
-  let cursor = 0;
-  return milestones.map((m) => {
-    const span = Math.max(1, m.estimatedDays || 1);
-    const start = cursor + 1;
-    const end = cursor + span;
-    cursor = end;
-    return start === end ? `Ngày ${start}` : `Ngày ${start}–${end}`;
-  });
 }
 
 function LearningPathDetailInner({ id }: { id: string }) {
@@ -182,7 +169,10 @@ function LearningPathDetailInner({ id }: { id: string }) {
     Boolean(m.completedAt) || m.completionRate === 100;
   const completedCount = path.milestones.filter(isMilestoneDone).length;
   // Khoảng ngày tích lũy cho từng chặng — hiển thị "Ngày X–Y" theo thứ tự lộ trình.
-  const dayRanges = buildDayRanges(path.milestones);
+  const dayBounds = buildDayBounds(path.milestones);
+  // "Việc tuần này" — cửa sổ 7 ngày kể từ hôm nay (logic dùng chung với Dashboard).
+  const { todayNum, weekEnd, items: weekItems, overdueCount, allDone } =
+    computeWeekTasks(path);
 
   return (
     <div className="min-h-screen bg-background">
@@ -246,6 +236,52 @@ function LearningPathDetailInner({ id }: { id: string }) {
           </div>
         </div>
 
+        {/* Việc tuần này — gom các chặng cần học trong 7 ngày tới */}
+        {path.milestones.length > 0 && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">
+                Việc tuần này (Ngày {todayNum}–{weekEnd})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {allDone ? (
+                <p className="text-sm text-muted-foreground">
+                  Bạn đã hoàn thành tất cả chặng của lộ trình. 🎉
+                </p>
+              ) : weekItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Không có chặng nào trong tuần này.
+                  {overdueCount > 0 && ` Bạn còn ${overdueCount} chặng trễ lịch — nên học sớm.`}
+                </p>
+              ) : (
+                <>
+                  <ul className="space-y-1.5">
+                    {weekItems.map(({ idx, bound }) => (
+                      <li key={idx} className="flex items-center gap-2 text-sm">
+                        <Badge variant="outline" className="shrink-0 font-medium">
+                          {dayRangeLabel(bound)}
+                        </Badge>
+                        <Link
+                          href={`/learning-path/${id}/study?m=${idx}`}
+                          className="truncate text-primary hover:underline"
+                        >
+                          {path.milestones[idx].title || `Chặng ${idx + 1}`}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                  {overdueCount > 0 && (
+                    <p className="text-xs text-amber-600">
+                      Ngoài ra còn {overdueCount} chặng trễ lịch chưa hoàn thành.
+                    </p>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Milestones timeline */}
         {path.milestones.length === 0 ? (
           <p className="text-sm text-muted-foreground">Lộ trình này chưa có chặng nào.</p>
@@ -284,7 +320,7 @@ function LearningPathDetailInner({ id }: { id: string }) {
                             </CardTitle>
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="outline" className="font-medium">
-                                {dayRanges[idx]}
+                                {dayRangeLabel(dayBounds[idx])}
                               </Badge>
                               <Badge variant={diff.variant}>{diff.label}</Badge>
                               <span className="text-xs text-muted-foreground">

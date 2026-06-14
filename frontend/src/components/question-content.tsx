@@ -6,6 +6,7 @@
 // Mục tiêu: câu hỏi tham chiếu "đoạn mã sau" hiển thị code rõ ràng, dễ nhìn.
 
 import { Fragment, type ReactNode } from 'react';
+import { highlightCode } from '@/lib/code-highlight';
 
 type Segment = { type: 'code'; content: string } | { type: 'text'; content: string };
 
@@ -64,7 +65,7 @@ export function QuestionContent({
             key={i}
             className="my-2 overflow-x-auto rounded-md border bg-muted/60 p-3 font-mono text-sm leading-relaxed"
           >
-            <code>{seg.content}</code>
+            <code>{highlightCode(seg.content)}</code>
           </pre>
         ) : (
           <span key={i} className="whitespace-pre-wrap">

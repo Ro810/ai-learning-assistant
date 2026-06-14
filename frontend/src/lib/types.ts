@@ -126,11 +126,15 @@ export interface LearningPathSummary {
   subjectId: string;
   targetLevel?: string;
   targetDate?: string;
+  // startDate dùng làm mốc tính "việc tuần này" trên Dashboard.
+  startDate?: string | null;
   status?: string;
   progressPercent?: number;
   milestones?: Array<{
     _id?: string;
     title?: string;
+    // estimatedDays để tính khoảng ngày từng chặng (việc tuần này).
+    estimatedDays?: number;
     completedAt?: string | null;
     completionRate?: number;
   }>;

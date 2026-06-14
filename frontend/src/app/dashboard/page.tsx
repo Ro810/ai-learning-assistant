@@ -32,6 +32,7 @@ import {
   subjectApi,
 } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
+import { computeWeekTasks, dayRangeLabel } from '@/lib/learning-path-week';
 import type {
   AssessmentSummary,
   LearningPathSummary,
@@ -176,6 +177,38 @@ function DashboardInner() {
     return null;
   }, [assessments, sessions, subjects]);
 
+  // "Việc tuần này" gom across các lộ trình đang active — chặng cần học trong 7 ngày tới.
+  const weekAgenda = useMemo(() => {
+    const entries: Array<{
+      key: string;
+      subject: string;
+      href: string;
+      label: string;
+      title: string;
+    }> = [];
+    let overdueTotal = 0;
+    for (const p of paths) {
+      if (p.status && p.status !== 'active') continue;
+      if (!p.milestones || p.milestones.length === 0) continue;
+      const tasks = computeWeekTasks({
+        startDate: p.startDate,
+        createdAt: p.createdAt,
+        milestones: p.milestones,
+      });
+      overdueTotal += tasks.overdueCount;
+      for (const it of tasks.items) {
+        entries.push({
+          key: `${p._id}-${it.idx}`,
+          subject: subjectName(p.subjectId),
+          href: `/learning-path/${p._id}/study?m=${it.idx}`,
+          label: dayRangeLabel(it.bound),
+          title: it.title,
+        });
+      }
+    }
+    return { entries, overdueTotal };
+  }, [paths, subjects]);
+
   const visibleAssessments = assessments.slice(0, RECENT_LIMIT);
   const hasMoreAssessments = assessments.length > RECENT_LIMIT;
   const greeting = greetingByHour();
@@ -281,6 +314,53 @@ function DashboardInner() {
               <ArrowRight className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5" />
             </div>
           </Link>
+        )}
+
+        {/* VIỆC TUẦN NÀY — chặng cần học trong 7 ngày tới, gom từ các lộ trình */}
+        {!loading && (weekAgenda.entries.length > 0 || weekAgenda.overdueTotal > 0) && (
+          <section>
+            <SectionHeader
+              title="Việc tuần này"
+              description="Các chặng cần học trong 7 ngày tới."
+              icon={<Target className="h-4 w-4" />}
+            />
+            {weekAgenda.entries.length === 0 ? (
+              <EmptyState>
+                Tuần này không có chặng mới.{' '}
+                {weekAgenda.overdueTotal > 0 &&
+                  `Bạn còn ${weekAgenda.overdueTotal} chặng trễ lịch — nên học sớm.`}
+              </EmptyState>
+            ) : (
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
+                {weekAgenda.entries.slice(0, 6).map((e, idx) => (
+                  <div key={e.key}>
+                    {idx > 0 && <Divider />}
+                    <Link
+                      href={e.href}
+                      className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-zinc-50"
+                    >
+                      <Badge variant="outline" className="shrink-0 font-medium">
+                        {e.label}
+                      </Badge>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-zinc-900">{e.title}</p>
+                        <p className="mt-0.5 text-xs text-zinc-400">{e.subject}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+                    </Link>
+                  </div>
+                ))}
+                {weekAgenda.overdueTotal > 0 && (
+                  <>
+                    <Divider />
+                    <p className="px-5 py-3 text-xs text-amber-600">
+                      Còn {weekAgenda.overdueTotal} chặng trễ lịch chưa hoàn thành.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+          </section>
         )}
 
         {/* QUICK-START SUBJECTS */}
