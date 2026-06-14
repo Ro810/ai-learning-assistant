@@ -35,6 +35,20 @@ function formatDate(iso?: string | null) {
   return new Date(iso).toLocaleDateString('vi-VN');
 }
 
+// Khoảng ngày tích lũy cho mỗi chặng dựa trên estimatedDays.
+// Chặng 1 chiếm ngày 1..d1, chặng 2 chiếm ngày (d1+1)..(d1+d2)...
+// 1 ngày → "Ngày 3"; nhiều ngày → "Ngày 4–6".
+function buildDayRanges(milestones: Array<{ estimatedDays: number }>): string[] {
+  let cursor = 0;
+  return milestones.map((m) => {
+    const span = Math.max(1, m.estimatedDays || 1);
+    const start = cursor + 1;
+    const end = cursor + span;
+    cursor = end;
+    return start === end ? `Ngày ${start}` : `Ngày ${start}–${end}`;
+  });
+}
+
 function LearningPathDetailInner({ id }: { id: string }) {
   const router = useRouter();
   const [path, setPath] = useState<LearningPath | null>(null);
@@ -156,6 +170,8 @@ function LearningPathDetailInner({ id }: { id: string }) {
   const isMilestoneDone = (m: { completedAt?: string | null; completionRate?: number }) =>
     Boolean(m.completedAt) || m.completionRate === 100;
   const completedCount = path.milestones.filter(isMilestoneDone).length;
+  // Khoảng ngày tích lũy cho từng chặng — hiển thị "Ngày X–Y" theo thứ tự lộ trình.
+  const dayRanges = buildDayRanges(path.milestones);
 
   return (
     <div className="min-h-screen bg-background">
@@ -250,9 +266,12 @@ function LearningPathDetailInner({ id }: { id: string }) {
                           {/* Trái: tiêu đề + metadata (độ khó, số ngày) gom thành 1 cụm */}
                           <div className="min-w-0 space-y-1.5">
                             <CardTitle className="text-lg leading-snug">
-                              {m.title || `Tuần ${idx + 1}`}
+                              {m.title || `Chặng ${idx + 1}`}
                             </CardTitle>
                             <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className="font-medium">
+                                {dayRanges[idx]}
+                              </Badge>
                               <Badge variant={diff.variant}>{diff.label}</Badge>
                               <span className="text-xs text-muted-foreground">
                                 ~{m.estimatedDays} ngày

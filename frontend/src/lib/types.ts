@@ -87,6 +87,16 @@ export interface AssessmentResults {
   recommendedLevel: string;
 }
 
+// Cấu hình đếm ngược do backend quyết định theo môn học.
+//   per_question — 15s mỗi câu (python, anh giao tiếp): hết giờ chuyển câu.
+//   per_exam     — tính giờ cả đề (toán/anh THPT): hết giờ nộp bài.
+export interface AssessmentTiming {
+  mode: 'per_question' | 'per_exam';
+  perQuestionSeconds?: number;
+  totalSeconds?: number;
+  startedAt?: string;
+}
+
 export interface Assessment {
   _id: string;
   userId: string;
@@ -95,6 +105,7 @@ export interface Assessment {
   difficulty?: 1 | 2 | 3;
   questions: AssessmentQuestion[];
   results?: AssessmentResults;
+  timing?: AssessmentTiming;
   completedAt?: string | null;
   createdAt: string;
 }

@@ -12,9 +12,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { assessmentApi, subjectApi } from '@/lib/api-services';
+import { toast } from 'sonner';
+import { assessmentApi, practiceApi, subjectApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
+import { QuestionContent } from '@/components/question-content';
 import type { Assessment, Subject } from '@/lib/types';
+
+// Ngưỡng điểm coi là "cần cải thiện" — dưới mức này hệ thống gợi ý luyện tập.
+const IMPROVE_THRESHOLD = 50;
 
 function ResultInner({ id }: { id: string }) {
   const router = useRouter();
@@ -22,6 +27,8 @@ function ResultInner({ id }: { id: string }) {
   const [subject, setSubject] = useState<Subject | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Trạng thái tạo phiên luyện tập cải thiện (khi điểm thấp).
+  const [improving, setImproving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -78,6 +85,45 @@ function ResultInner({ id }: { id: string }) {
   const topicName = (topicId: string) =>
     subject?.topics.find((t) => t._id === topicId)?.name ?? topicId.slice(-6);
 
+  // Chủ đề yếu = tỉ lệ đúng < ngưỡng. Nếu không tách được → dùng toàn bộ chủ đề đã đánh giá.
+  const weakTopicIds = (() => {
+    const weak = skillAnalysis
+      .filter((sa) => sa.total > 0 && (sa.correct / sa.total) * 100 < IMPROVE_THRESHOLD)
+      .map((sa) => sa.topicId);
+    return weak.length > 0 ? weak : skillAnalysis.map((sa) => sa.topicId);
+  })();
+
+  // Tạo phiên luyện tập adaptive tập trung chủ đề yếu → vào thẳng bài.
+  const handleImprove = async () => {
+    if (improving) return;
+    setImproving(true);
+    try {
+      const session = await practiceApi.create({
+        subjectId: assessment.subjectId,
+        topicIds: weakTopicIds.length > 0 ? weakTopicIds : undefined,
+        mode: 'adaptive',
+        questionCount: 10,
+        label: 'Luyện tập cải thiện',
+      });
+      toast.success('Đã tạo phiên luyện tập cải thiện!');
+      router.push(`/practice/${session._id}`);
+    } catch (err: unknown) {
+      const e = err as {
+        response?: { status?: number; data?: { data?: { existingId?: string } } };
+      };
+      // 409 — đã có phiên dở cùng môn; cho user tiếp tục thay vì kẹt.
+      if (e?.response?.status === 409 && e.response.data?.data?.existingId) {
+        toast.info('Bạn đang có 1 phiên luyện tập dở — chuyển tới đó.');
+        router.push(`/practice/${e.response.data.data.existingId}`);
+        return;
+      }
+      toast.error(getErrorMessage(err));
+      setImproving(false);
+    }
+  };
+
+  const needsImprovement = score < IMPROVE_THRESHOLD;
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -127,6 +173,29 @@ function ResultInner({ id }: { id: string }) {
           </CardContent>
         </Card>
 
+        {/* Gợi ý luyện tập khi điểm dưới ngưỡng — vào thẳng phiên luyện chủ đề yếu. */}
+        {needsImprovement && (
+          <Card className="border-amber-500/50 bg-amber-50/60 dark:bg-amber-900/15">
+            <CardContent className="flex flex-col gap-3 py-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold">
+                  Điểm còn thấp ({score}/100) — luyện tập để cải thiện nhé!
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Hệ thống sẽ tạo 1 phiên luyện tập thích ứng, tập trung vào{' '}
+                  {weakTopicIds.length === 1
+                    ? `chủ đề "${topicName(weakTopicIds[0])}"`
+                    : `${weakTopicIds.length} chủ đề bạn còn yếu`}
+                  .
+                </p>
+              </div>
+              <Button onClick={handleImprove} disabled={improving} className="shrink-0">
+                {improving ? 'Đang tạo...' : 'Luyện tập cải thiện'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Xem lại từng câu</CardTitle>
@@ -134,14 +203,23 @@ function ResultInner({ id }: { id: string }) {
           <CardContent className="space-y-4">
             {assessment.questions.map((q, idx) => {
               const correct = q.questionSnapshot.content.correctAnswer;
+              // userAnswer rỗng/null = chưa trả lời (vẫn tính sai khi chấm điểm,
+              // nhưng phần xem lại ghi "Chưa làm" để phân biệt với chọn sai).
+              const answered = Boolean(q.userAnswer);
               return (
                 <div key={q.questionId} className="space-y-2 border-b pb-3 last:border-0">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-medium">
-                      Câu {idx + 1}. {q.questionSnapshot.content.questionText}
-                    </p>
-                    <Badge variant={q.isCorrect ? 'default' : 'destructive'}>
-                      {q.isCorrect ? 'Đúng' : 'Sai'}
+                    <div className="min-w-0 flex-1 text-sm font-medium">
+                      <span className="mr-1">Câu {idx + 1}.</span>
+                      <QuestionContent
+                        text={q.questionSnapshot.content.questionText}
+                        className="inline"
+                      />
+                    </div>
+                    <Badge
+                      variant={q.isCorrect ? 'default' : answered ? 'destructive' : 'secondary'}
+                    >
+                      {q.isCorrect ? 'Đúng' : answered ? 'Sai' : 'Chưa làm'}
                     </Badge>
                   </div>
                   <ul className="space-y-1 text-sm">
@@ -160,7 +238,7 @@ function ResultInner({ id }: { id: string }) {
                           }`}
                         >
                           <span className="mr-1 font-semibold">{opt.id.toUpperCase()}.</span>
-                          {opt.text}
+                          <QuestionContent text={opt.text} className="inline" />
                           {isCorrect && ' ✓'}
                           {isUser && !isCorrect && ' (chọn)'}
                         </li>

@@ -5,7 +5,7 @@
 // RIGHT — tóm tắt kiến thức của chủ đề + slider 5-20 câu + nút "Bắt đầu làm bài".
 // Click "Bắt đầu" gọi assessment create trực tiếp (skip /assessment/new).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Play, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,10 +24,21 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
   const topics = subject.topics;
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [questionCount, setQuestionCount] = useState(10);
-  const [difficulty, setDifficulty] = useState<1 | 2 | 3>(2);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
+  // Đếm số giây trôi qua khi đang sinh câu hỏi — cho user biết tiến trình còn chạy.
+  const [elapsed, setElapsed] = useState(0);
+
+  // Bật/tắt đồng hồ theo trạng thái starting; reset về 0 khi dừng.
+  useEffect(() => {
+    if (!starting) {
+      setElapsed(0);
+      return;
+    }
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [starting]);
 
   const selected = topics[selectedIdx];
 
@@ -40,7 +51,6 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
       const assessment = await assessmentApi.create({
         subjectId,
         topicIds: [selected._id],
-        difficulty,
         questionCount,
       });
       router.push(`/assessment/${assessment._id}`);
@@ -119,34 +129,6 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
 
         <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div>
-            <label className="text-sm font-medium block mb-2">Độ khó</label>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { v: 1, label: 'Cơ bản' },
-                { v: 2, label: 'Trung bình' },
-                { v: 3, label: 'Nâng cao' },
-              ] as const).map((opt) => {
-                const active = difficulty === opt.v;
-                return (
-                  <button
-                    key={opt.v}
-                    type="button"
-                    onClick={() => setDifficulty(opt.v)}
-                    disabled={starting}
-                    className={`rounded-md border px-3 py-2 text-sm transition-colors ${
-                      active
-                        ? 'border-primary bg-primary/10 text-primary font-medium'
-                        : 'border-border hover:bg-muted'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
             <label className="text-sm font-medium block mb-2">
               Số câu hỏi: <span className="text-primary">{questionCount}</span>
             </label>
@@ -195,7 +177,7 @@ export function TopicStudyView({ subject, subjectId }: TopicStudyViewProps) {
             className="gap-2 w-full sm:w-auto"
           >
             <Play className="h-4 w-4" />
-            {starting ? 'Đang sinh câu hỏi...' : 'Bắt đầu làm bài'}
+            {starting ? `Đang sinh câu hỏi... ${elapsed}s` : 'Bắt đầu làm bài'}
           </Button>
         </div>
       </section>

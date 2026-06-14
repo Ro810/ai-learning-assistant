@@ -1,27 +1,24 @@
 'use client';
 
-// Registration page. On success, redirects to /dashboard.
-// Centered card layout with playful learning-themed hero icon (same as login).
+// Registration page — styled to match the reference (two-column name row like
+// First/Last, frosted fields, uppercase title + button). On success → /dashboard.
 
 import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  GraduationCap,
-  Sparkles,
-  BookOpen,
-  ArrowRight,
-} from 'lucide-react';
+import { User, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AuthShell } from '@/components/auth-shell';
+import { AuthField } from '@/components/auth-field';
 import { useAuth } from '@/lib/auth-context';
 import { getErrorMessage } from '@/lib/api-client';
 
 export default function RegisterPage() {
   const { register, user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [lastName, setLastName] = useState(''); // Họ
+  const [firstName, setFirstName] = useState(''); // Tên
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -36,6 +33,8 @@ export default function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
+      // Backend lưu 1 trường `name` → ghép Họ + Tên theo thứ tự tiếng Việt.
+      const name = `${lastName} ${firstName}`.trim();
       await register(email, password, name);
       toast.success('Đăng ký thành công, chào mừng!');
       router.replace('/dashboard');
@@ -49,109 +48,77 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-zinc-50 px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="rounded-3xl border border-zinc-200 bg-white p-8 sm:p-10 shadow-sm">
-          <HeroIcon />
+    <AuthShell altAction={{ label: 'Đăng nhập', href: '/login' }}>
+      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-500">
+        Bắt đầu miễn phí
+      </p>
+      <h1 className="mt-2 font-[family-name:var(--font-heading)] text-4xl font-extrabold uppercase tracking-tight text-zinc-900 sm:text-5xl">
+        Tạo tài khoản
+      </h1>
+      <div className="mt-3 h-[3px] w-full rounded-full bg-zinc-900/85" />
+      <p className="mt-4 mb-7 text-sm text-zinc-600">
+        Đã là thành viên?{' '}
+        <Link href="/login" className="font-semibold text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
+          Đăng nhập
+        </Link>
+      </p>
 
-          <div className="text-center space-y-1.5 mt-6 mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Bắt đầu hành trình của bạn
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Tạo tài khoản miễn phí, học cùng AI chỉ trong 30 giây.
-            </p>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Họ và tên</label>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                minLength={2}
-                placeholder="Nguyễn Văn A"
-                disabled={submitting}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Email</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="ban@example.com"
-                disabled={submitting}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Mật khẩu</label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                disabled={submitting}
-                className="h-11 rounded-xl"
-              />
-              <p className="text-xs text-muted-foreground">
-                Tối thiểu 6 ký tự.
-              </p>
-            </div>
-
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full h-11 rounded-xl text-base font-semibold mt-2"
-              disabled={submitting}
-            >
-              {submitting ? (
-                'Đang xử lý...'
-              ) : (
-                <>
-                  Tạo tài khoản
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </form>
+      <form onSubmit={onSubmit} className="space-y-3.5">
+        <div className="grid grid-cols-2 gap-3">
+          <AuthField
+            label="Họ"
+            icon={<User className="h-4 w-4" />}
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+            required
+            placeholder="Nguyễn"
+            disabled={submitting}
+            autoComplete="family-name"
+          />
+          <AuthField
+            label="Tên"
+            icon={<User className="h-4 w-4" />}
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+            placeholder="An"
+            disabled={submitting}
+            autoComplete="given-name"
+          />
         </div>
+        <AuthField
+          label="Email"
+          icon={<Mail className="h-4 w-4" />}
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          placeholder="ban@example.com"
+          disabled={submitting}
+          autoComplete="email"
+        />
+        <AuthField
+          label="Mật khẩu"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+          placeholder="Tối thiểu 6 ký tự"
+          disabled={submitting}
+          autoComplete="new-password"
+        />
 
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          Đã có tài khoản?{' '}
-          <Link
-            href="/login"
-            className="font-semibold text-foreground hover:underline"
-          >
-            Đăng nhập
-          </Link>
-        </p>
-      </div>
-    </main>
-  );
-}
+        {error && <p className="text-sm text-destructive">{error}</p>}
 
-// Decorative hero — big graduation cap with two floating mini-icons.
-function HeroIcon() {
-  return (
-    <div className="relative mx-auto w-fit">
-      <div className="h-20 w-20 rounded-2xl bg-zinc-900 flex items-center justify-center shadow-lg shadow-zinc-900/15">
-        <GraduationCap className="h-10 w-10 text-white" strokeWidth={2} />
-      </div>
-      <div className="absolute -top-2 -right-3 h-9 w-9 rounded-xl bg-white border border-zinc-200 flex items-center justify-center shadow-sm rotate-12">
-        <Sparkles className="h-4 w-4 text-zinc-700" />
-      </div>
-      <div className="absolute -bottom-2 -left-3 h-9 w-9 rounded-xl bg-white border border-zinc-200 flex items-center justify-center shadow-sm -rotate-12">
-        <BookOpen className="h-4 w-4 text-zinc-700" />
-      </div>
-    </div>
+        <Button
+          type="submit"
+          className="mt-3 h-12 rounded-xl bg-zinc-900 px-12 text-sm font-bold uppercase tracking-wider hover:bg-zinc-800"
+          disabled={submitting}
+        >
+          {submitting ? 'Đang xử lý...' : 'Tạo tài khoản'}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

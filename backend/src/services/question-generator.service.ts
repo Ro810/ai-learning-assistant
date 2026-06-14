@@ -40,8 +40,13 @@ Requirements:
 2. Exactly one correct answer.
 3. Write the question, all options, and the explanation entirely in English.
 4. Provide a clear, concise explanation for the correct answer.
+5. If a question refers to a code snippet, you MUST embed the actual code INSIDE
+   "questionText" as a fenced markdown code block (\`\`\`lang ... \`\`\`). NEVER write
+   "the following code" without including the code itself. For inline identifiers use
+   single backticks, e.g. \`x\`. Keep the whole output VALID JSON — newlines inside any
+   string value must be the two characters backslash-n (\\n), not literal line breaks.
 
-Return ONLY a JSON array (no surrounding text, no markdown):
+Return ONLY a JSON array (no surrounding text, no markdown wrapper around the array):
 [
   {
     "questionText": "...",
@@ -71,8 +76,14 @@ Yêu cầu:
 2. Chỉ có 1 đáp án đúng
 3. Cung cấp giải thích chi tiết cho mỗi câu
 4. Câu hỏi phải chính xác về mặt kiến thức
+5. Nếu câu hỏi có nhắc tới một đoạn mã, BẮT BUỘC nhúng chính đoạn mã đó NGAY TRONG
+   "questionText" dưới dạng khối code markdown (\`\`\`python ... \`\`\`). TUYỆT ĐỐI không
+   viết "đoạn mã sau" mà thiếu code. Nếu không có code thì hỏi lý thuyết thuần, không
+   nhắc tới "đoạn mã". Tên biến/hàm inline để trong dấu \` \`, ví dụ \`x\`. Giữ output là
+   JSON HỢP LỆ — ký tự xuống dòng trong chuỗi phải là hai ký tự backslash-n (\\n), không
+   được là xuống dòng thật.
 
-Format JSON (chỉ trả về JSON, không có text khác):
+Format JSON (chỉ trả về JSON, không có text khác bao quanh mảng):
 [
   {
     "questionText": "Câu hỏi...",

@@ -366,10 +366,37 @@ export const getAssessmentById = async (
 
     // Reveal answer key only after completion. While in progress (or abandoned)
     // the snapshot is sanitized to prevent answer leakage.
-    const payload =
-      assessment.status === 'completed' ? assessment : stripAnswerKey(assessment);
+    const base =
+      assessment.status === 'completed'
+        ? (assessment.toObject ? assessment.toObject() : assessment)
+        : stripAnswerKey(assessment);
 
-    res.json({ success: true, data: { assessment: payload } });
+    // Cấu hình đếm ngược theo môn:
+    //   - THPT (toán/anh): tính giờ CẢ ĐỀ theo durationMinutes của pack → hết giờ nộp bài.
+    //   - còn lại (python, anh giao tiếp): đếm 15s MỖI CÂU → hết giờ chuyển câu.
+    // startedAt = createdAt để remaining tính từ server, reload không reset được.
+    const subject = await Subject.findById(assessment.subjectId).select('code').lean();
+    const code = subject?.code ?? '';
+    const isExamTimed = code === 'math-thpt' || code === 'english-thpt';
+    let timing: Record<string, unknown>;
+    if (isExamTimed) {
+      let durationMinutes = 60;
+      if (assessment.packId) {
+        const pack = await TestPack.findById(assessment.packId)
+          .select('durationMinutes')
+          .lean();
+        if (pack?.durationMinutes) durationMinutes = pack.durationMinutes;
+      }
+      timing = {
+        mode: 'per_exam',
+        totalSeconds: durationMinutes * 60,
+        startedAt: assessment.get('createdAt'),
+      };
+    } else {
+      timing = { mode: 'per_question', perQuestionSeconds: 15 };
+    }
+
+    res.json({ success: true, data: { assessment: { ...base, timing } } });
   } catch (error) {
     next(error);
   }

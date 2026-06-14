@@ -1,8 +1,9 @@
 'use client';
 
-// New assessment screen: pick subject + difficulty + count, then create.
+// New assessment screen: pick subject + question count, then create.
 // Reads ?subjectId, ?topicId, ?topicName, ?packId, ?questionCount query params.
-// Pack mode (packId present): hides difficulty + count controls, starts instantly.
+// Pack mode (packId present): hides count control, starts instantly.
+// Độ khó không cho chọn — backend tự dùng mức Trung bình mặc định.
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -29,7 +30,6 @@ function NewAssessmentInner() {
 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [subjectId, setSubjectId] = useState(initialSubjectId);
-  const [difficulty, setDifficulty] = useState<1 | 2 | 3>(2);
   const [questionCount, setQuestionCount] = useState(
     presetQuestionCount > 0 ? presetQuestionCount : 10,
   );
@@ -63,7 +63,7 @@ function NewAssessmentInner() {
         ...(presetTopicId ? { topicIds: [presetTopicId] } : {}),
         ...(isPackMode
           ? { packId: presetPackId, questionCount }
-          : { difficulty, questionCount }),
+          : { questionCount }),
       });
       router.push(`/assessment/${assessment._id}`);
     } catch (err: unknown) {
@@ -111,23 +111,6 @@ function NewAssessmentInner() {
                       {s.name}
                     </option>
                   ))}
-                </select>
-              </div>
-            )}
-
-            {/* Difficulty selector — hidden in pack mode */}
-            {!isPackMode && (
-              <div>
-                <label className="mb-1 block text-sm font-medium">Độ khó</label>
-                <select
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={difficulty}
-                  onChange={(e) => setDifficulty(Number(e.target.value) as 1 | 2 | 3)}
-                  disabled={submitting}
-                >
-                  <option value={1}>Cơ bản</option>
-                  <option value={2}>Trung bình</option>
-                  <option value={3}>Nâng cao</option>
                 </select>
               </div>
             )}

@@ -1,17 +1,15 @@
 'use client';
 
-// Dashboard: hero greeting + stats overview, continue-learning cue, subject
-// quick-start grid, then recent assessments / learning paths / practice
-// sessions. Mirrors the rounded-2xl/iOS-settings design language used in the
-// Profile page.
+// Dashboard: illustrated hero greeting + always-visible stat cards, a
+// continue-learning cue, a subject quick-start grid, then recent assessments /
+// learning paths / practice sessions. Visual language matches the auth screens
+// (white canvas, soft wavy gray shapes, Plus Jakarta Sans headings, pill cards).
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
-  ChevronDown,
   ChevronRight,
   Flame,
   GraduationCap,
@@ -43,6 +41,8 @@ import type {
 } from '@/lib/types';
 
 const RECENT_LIMIT = 3;
+// Tailwind class for the display (heading) font defined in layout.tsx.
+const HEADING = 'font-[family-name:var(--font-heading)]';
 
 const statusLabels: Record<
   string,
@@ -81,7 +81,7 @@ function greetingByHour(): string {
 }
 
 function Divider() {
-  return <div className="h-px bg-border" />;
+  return <div className="h-px bg-zinc-200/80" />;
 }
 
 function DashboardInner() {
@@ -182,19 +182,65 @@ function DashboardInner() {
   const displayName = user?.profile.name?.trim() || 'bạn';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-zinc-50">
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10 space-y-10">
-        {/* HERO — greeting */}
-        <section>
-          <p className="text-sm text-muted-foreground">{greeting},</p>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-1">
-            {displayName} 👋
-          </h1>
-          <p className="text-sm text-muted-foreground mt-2 max-w-xl">
-            Tiếp tục hành trình học tập của bạn. Chọn một môn để đánh giá đầu vào hoặc xem tiến độ
-            bên dưới.
-          </p>
+      <main className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:py-10">
+        {/* HERO — greeting + illustration on a wavy white panel */}
+        <section className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white px-6 py-8 shadow-sm sm:px-10 sm:py-10">
+          {/* Soft wavy decoration bleeding off the right edge */}
+          <svg
+            aria-hidden
+            className="absolute right-0 top-0 hidden h-full w-2/5 lg:block"
+            viewBox="0 0 400 400"
+            preserveAspectRatio="none"
+            fill="none"
+          >
+            <path
+              d="M400 0 H140 C90 110 180 190 120 290 C82 352 150 372 130 400 H400 Z"
+              fill="#f4f4f5"
+            />
+          </svg>
+
+          <div className="relative flex items-center justify-between gap-6">
+            <div className="max-w-xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-400">
+                {greeting}
+              </p>
+              <h1 className={`${HEADING} mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 sm:text-4xl`}>
+                Xin chào, {displayName} 👋
+              </h1>
+              <p className="mt-3 max-w-md text-sm leading-relaxed text-zinc-500">
+                Tiếp tục hành trình học tập của bạn. Chọn một môn để đánh giá đầu
+                vào, hoặc xem tiến độ bên dưới.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Button
+                  asChild
+                  className="h-11 rounded-xl bg-zinc-900 px-6 font-semibold hover:bg-zinc-800"
+                >
+                  <a href="#mon-hoc">
+                    Bắt đầu đánh giá
+                    <ArrowRight className="ml-1.5 h-4 w-4" />
+                  </a>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="h-11 rounded-xl border-zinc-300 px-6 font-semibold"
+                >
+                  <Link href="/practice/new">Luyện tập ngay</Link>
+                </Button>
+              </div>
+            </div>
+
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/learning-illustration.svg"
+              alt=""
+              aria-hidden
+              className="pointer-events-none hidden w-56 select-none lg:block xl:w-64"
+            />
+          </div>
         </section>
 
         {error && (
@@ -203,47 +249,42 @@ function DashboardInner() {
           </div>
         )}
 
-        {/* STATS — collapsible summary card; expands to 3 metric tiles
-            (Bài hoàn thành có filter lọc theo môn). */}
-        <section>
-          <StatsPanel
-            stats={stats}
-            loading={loading}
-            assessments={assessments}
-            subjects={subjects}
-          />
-        </section>
+        {/* STATS — always-visible metric cards */}
+        <StatsGrid
+          stats={stats}
+          loading={loading}
+          assessments={assessments}
+          subjects={subjects}
+        />
 
         {/* CONTINUE LEARNING — show only if there is an in-progress item */}
         {inProgress && (
-          <section>
-            <Link
-              href={inProgress.href}
-              className="group block rounded-2xl border border-border bg-card p-5 sm:p-6 transition-colors hover:bg-accent"
-            >
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                  <PlayCircle className="h-6 w-6" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">
-                    {inProgress.subtitle}
-                  </p>
-                  <p className="font-medium text-base truncate mt-0.5">
-                    {inProgress.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Bắt đầu {formatDate(inProgress.createdAt)}
-                  </p>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 transition-transform group-hover:translate-x-0.5" />
+          <Link
+            href={inProgress.href}
+            className="group block rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-colors hover:bg-zinc-50 sm:p-6"
+          >
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+                <PlayCircle className="h-6 w-6" />
               </div>
-            </Link>
-          </section>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-wider text-zinc-400">
+                  {inProgress.subtitle}
+                </p>
+                <p className="mt-0.5 truncate text-base font-semibold text-zinc-900">
+                  {inProgress.title}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  Bắt đầu {formatDate(inProgress.createdAt)}
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5" />
+            </div>
+          </Link>
         )}
 
         {/* QUICK-START SUBJECTS */}
-        <section>
+        <section id="mon-hoc" className="scroll-mt-24">
           <SectionHeader
             title="Bắt đầu một bài đánh giá"
             description="Chọn 1 môn học để kiểm tra đầu vào."
@@ -284,7 +325,7 @@ function DashboardInner() {
             }
           />
           {loading ? (
-            <div className="rounded-2xl border border-border bg-card">
+            <div className="rounded-3xl border border-zinc-200 bg-white">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="px-5 py-4">
                   <Skeleton className="h-10 w-full" />
@@ -296,24 +337,24 @@ function DashboardInner() {
               Chưa có bài đánh giá nào. Chọn một môn ở trên để bắt đầu.
             </EmptyState>
           ) : (
-            <div className="rounded-2xl border border-border bg-card overflow-hidden">
+            <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
               {visibleAssessments.map((a, idx) => (
                 <div key={a._id}>
                   {idx > 0 && <Divider />}
                   <div className="flex items-center justify-between gap-3 px-5 py-4">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium truncate">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="truncate font-semibold text-zinc-900">
                           {subjectName(a.subjectId)}
                         </span>
                         <StatusBadge status={a.status} />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="mt-1 text-xs text-zinc-400">
                         {formatDate(a.createdAt)}
                         {a.results && (
                           <>
                             <span className="mx-1.5">·</span>
-                            <span className="font-medium text-foreground">
+                            <span className="font-medium text-zinc-700">
                               {a.results.score}/100
                             </span>
                             <span className="ml-1">
@@ -326,7 +367,7 @@ function DashboardInner() {
                         )}
                       </p>
                     </div>
-                    <Button asChild variant="outline" size="sm" className="shrink-0">
+                    <Button asChild variant="outline" size="sm" className="shrink-0 rounded-lg border-zinc-300">
                       <Link
                         href={
                           a.status === 'completed'
@@ -353,34 +394,34 @@ function DashboardInner() {
           <div>
             <SectionHeader
               title="Lộ trình học"
-              description="Kế hoạch học theo tuần."
+              description="Kế hoạch học chia theo ngày."
               icon={<Target className="h-4 w-4" />}
             />
             {loading ? (
-              <Skeleton className="h-28 w-full rounded-2xl" />
+              <Skeleton className="h-28 w-full rounded-3xl" />
             ) : paths.length === 0 ? (
               <EmptyState>
                 Chưa có lộ trình. Hoàn thành một bài đánh giá để hệ thống tạo lộ trình.
               </EmptyState>
             ) : (
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
                 {paths.slice(0, 4).map((p, idx) => (
                   <div key={p._id}>
                     {idx > 0 && <Divider />}
                     <Link
                       href={`/learning-path/${p._id}`}
-                      className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-accent transition-colors"
+                      className="flex items-center justify-between gap-3 px-5 py-4 transition-colors hover:bg-zinc-50"
                     >
                       <div className="min-w-0">
-                        <p className="font-medium truncate">
+                        <p className="truncate font-semibold text-zinc-900">
                           {subjectName(p.subjectId)}
                         </p>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="mt-1 text-xs text-zinc-400">
                           Mục tiêu: {p.targetLevel ?? '—'} ·{' '}
                           {p.milestones?.length ?? 0} chặng
                         </p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
                     </Link>
                   </div>
                 ))}
@@ -395,7 +436,7 @@ function DashboardInner() {
               icon={<GraduationCap className="h-4 w-4" />}
             />
             {loading ? (
-              <Skeleton className="h-28 w-full rounded-2xl" />
+              <Skeleton className="h-28 w-full rounded-3xl" />
             ) : sessions.length === 0 ? (
               <EmptyState>
                 Chưa có phiên luyện tập nào.{' '}
@@ -404,14 +445,14 @@ function DashboardInner() {
                 </Link>
               </EmptyState>
             ) : (
-              <div className="rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm">
                 {sessions.slice(0, 4).map((s, idx) => (
                   <div key={s._id}>
                     {idx > 0 && <Divider />}
                     <div className="flex items-center justify-between gap-3 px-5 py-4">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium truncate">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate font-semibold text-zinc-900">
                             {s.label ||
                               (s.mode === 'exam_simulation'
                                 ? 'Mô phỏng đề'
@@ -419,12 +460,12 @@ function DashboardInner() {
                           </span>
                           <StatusBadge status={s.status} />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="mt-1 text-xs text-zinc-400">
                           {formatDate(s.createdAt)}
                           {s.results?.score !== undefined && (
                             <>
                               <span className="mx-1.5">·</span>
-                              <span className="font-medium text-foreground">
+                              <span className="font-medium text-zinc-700">
                                 {s.results.score}/100
                               </span>
                             </>
@@ -466,12 +507,12 @@ function SectionHeader({
   return (
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
-          {icon && <span className="text-muted-foreground">{icon}</span>}
+        <h2 className={`${HEADING} flex items-center gap-2 text-lg font-bold tracking-tight text-zinc-900`}>
+          {icon && <span className="text-zinc-400">{icon}</span>}
           {title}
         </h2>
         {description && (
-          <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+          <p className="mt-0.5 text-sm text-zinc-500">{description}</p>
         )}
       </div>
       {action && <div className="shrink-0">{action}</div>}
@@ -485,11 +526,9 @@ interface DashboardStats {
   weakTopics: number;
 }
 
-// Collapsible aggregate of the key metrics. Header acts as a toggle —
-// expands to a 3-tile grid (Bài hoàn thành / Điểm TB / Điểm yếu).
-// "Bài hoàn thành" tile has a per-subject filter; "Điểm yếu" clicks through
-// to /weakness.
-function StatsPanel({
+// Three always-visible metric cards. "Bài hoàn thành" carries a per-subject
+// filter; "Điểm yếu" links through to /weakness.
+function StatsGrid({
   stats,
   loading,
   assessments,
@@ -500,98 +539,58 @@ function StatsPanel({
   assessments: AssessmentSummary[];
   subjects: Subject[];
 }) {
-  const [open, setOpen] = useState(false);
   const [subjectFilter, setSubjectFilter] = useState<string>('all');
 
-  // Completed count filtered by selected subject.
   const completedFiltered = useMemo(() => {
     const completed = assessments.filter((a) => a.status === 'completed');
     if (subjectFilter === 'all') return completed.length;
     return completed.filter((a) => a.subjectId === subjectFilter).length;
   }, [assessments, subjectFilter]);
 
-  // One-line summary shown while collapsed (always all-subjects totals so
-  // the headline is stable regardless of the filter chosen inside).
-  const summary = loading
-    ? 'Đang tải...'
-    : stats.completed === 0
-      ? 'Chưa có dữ liệu — hoàn thành 1 bài đánh giá để xem thống kê.'
-      : `${stats.completed} bài · TB ${stats.avgScore}/100 · ${stats.weakTopics} điểm yếu`;
-
   return (
-    <div className="rounded-2xl border border-border bg-card overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-accent transition-colors"
-      >
-        <div className="h-9 w-9 shrink-0 rounded-xl bg-muted flex items-center justify-center">
-          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold tracking-tight">Thống kê của tôi</p>
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">
-            {summary}
-          </p>
-        </div>
-        <ChevronDown
-          className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${
-            open ? 'rotate-180' : ''
-          }`}
-        />
-      </button>
-
-      {open && (
-        <>
-          <Divider />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-px bg-border">
-            <StatTile
-              icon={<Trophy className="h-4 w-4" />}
-              label="Bài hoàn thành"
-              value={completedFiltered}
-              loading={loading}
-              footer={
-                <select
-                  value={subjectFilter}
-                  onChange={(e) => setSubjectFilter(e.target.value)}
-                  disabled={loading || subjects.length === 0}
-                  className="mt-3 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  aria-label="Lọc theo môn"
-                >
-                  <option value="all">Tất cả môn</option>
-                  {subjects.map((s) => (
-                    <option key={s._id} value={s._id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              }
-            />
-            <StatTile
-              icon={<TrendingUp className="h-4 w-4" />}
-              label="Điểm trung bình"
-              value={stats.completed > 0 ? `${stats.avgScore}/100` : '—'}
-              loading={loading}
-            />
-            <StatTile
-              icon={<Flame className="h-4 w-4" />}
-              label="Điểm yếu cần ôn"
-              value={stats.weakTopics}
-              loading={loading}
-              href={stats.weakTopics > 0 ? '/weakness' : undefined}
-              accent={stats.weakTopics > 0}
-            />
-          </div>
-        </>
-      )}
-    </div>
+    <section className="grid gap-4 sm:grid-cols-3">
+      <StatCard
+        icon={<Trophy className="h-4 w-4" />}
+        label="Bài hoàn thành"
+        value={completedFiltered}
+        loading={loading}
+        footer={
+          <select
+            value={subjectFilter}
+            onChange={(e) => setSubjectFilter(e.target.value)}
+            disabled={loading || subjects.length === 0}
+            className="mt-3 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs text-zinc-700 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            aria-label="Lọc theo môn"
+          >
+            <option value="all">Tất cả môn</option>
+            {subjects.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        }
+      />
+      <StatCard
+        icon={<TrendingUp className="h-4 w-4" />}
+        label="Điểm trung bình"
+        value={stats.completed > 0 ? `${stats.avgScore}/100` : '—'}
+        loading={loading}
+      />
+      <StatCard
+        icon={<Flame className="h-4 w-4" />}
+        label="Điểm yếu cần ôn"
+        value={stats.weakTopics}
+        loading={loading}
+        href={stats.weakTopics > 0 ? '/weakness' : undefined}
+        accent={stats.weakTopics > 0}
+      />
+    </section>
   );
 }
 
-// Single metric tile rendered inside StatsPanel's expanded grid.
-// `footer` slot renders below the value (used for the per-subject filter).
-function StatTile({
+// Single metric card. `footer` renders below the value (per-subject filter).
+function StatCard({
   icon,
   label,
   value,
@@ -610,22 +609,18 @@ function StatTile({
 }) {
   const body = (
     <>
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <span className={accent ? 'text-orange-500' : ''}>{icon}</span>
-        <span className="text-xs font-medium uppercase tracking-wider">
+      <div className="flex items-center gap-2">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
+          {icon}
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
           {label}
         </span>
       </div>
       {loading ? (
-        <Skeleton className="h-8 w-16 mt-3" />
+        <Skeleton className="mt-3 h-9 w-20" />
       ) : (
-        <p
-          className={`text-2xl sm:text-3xl font-semibold tracking-tight mt-2 ${
-            accent && typeof value === 'number' && value > 0
-              ? 'text-orange-500'
-              : ''
-          }`}
-        >
+        <p className={`${HEADING} mt-3 text-3xl font-extrabold tracking-tight text-zinc-900`}>
           {value}
         </p>
       )}
@@ -633,12 +628,16 @@ function StatTile({
     </>
   );
 
-  const cls = 'bg-card p-4 sm:p-5 transition-colors';
+  const cls =
+    'rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-all';
 
   if (href) {
     return (
-      <Link href={href} className={`${cls} hover:bg-accent block`}>
+      <Link href={href} className={`${cls} block hover:-translate-y-0.5 hover:shadow-md ${accent ? 'ring-1 ring-zinc-900/5' : ''}`}>
         {body}
+        <span className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-zinc-500">
+          Xem chi tiết <ArrowRight className="h-3 w-3" />
+        </span>
       </Link>
     );
   }
@@ -649,17 +648,19 @@ function SubjectCard({ subject }: { subject: Subject }) {
   return (
     <Link
       href={`/subjects/${subject._id}`}
-      className="group rounded-2xl border border-border bg-card p-5 transition-all hover:border-foreground/30 hover:shadow-sm flex flex-col gap-3"
+      className="group flex flex-col gap-3 rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md"
     >
       <div className="flex items-center justify-between">
-        <div className="h-9 w-9 rounded-xl bg-muted flex items-center justify-center">
-          <BookOpen className="h-4 w-4 text-muted-foreground" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-white">
+          <BookOpen className="h-5 w-5" />
         </div>
-        <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        <ArrowRight className="h-4 w-4 text-zinc-400 transition-transform group-hover:translate-x-0.5" />
       </div>
       <div>
-        <p className="font-semibold tracking-tight">{subject.name}</p>
-        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+        <p className={`${HEADING} font-bold tracking-tight text-zinc-900`}>
+          {subject.name}
+        </p>
+        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
           {subject.description ?? `${subject.topics.length} chủ đề`}
         </p>
       </div>
@@ -669,8 +670,8 @@ function SubjectCard({ subject }: { subject: Subject }) {
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border py-10 text-center">
-      <p className="text-sm text-muted-foreground px-4">{children}</p>
+    <div className="rounded-3xl border border-dashed border-zinc-300 bg-white/50 py-10 text-center">
+      <p className="px-4 text-sm text-zinc-500">{children}</p>
     </div>
   );
 }

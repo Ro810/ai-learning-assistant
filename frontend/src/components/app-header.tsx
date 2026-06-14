@@ -1,50 +1,53 @@
 'use client';
 
-// Top header for authenticated pages. Shows logo, primary nav links,
-// current user info, and logout button.
+// Top header for authenticated pages. Logo + primary nav + user avatar.
+// Styled to match the auth screens: white bar, graduation-cap mark, pill nav
+// with a solid-dark active state.
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
 const NAV_LINKS = [
-  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/dashboard', label: 'Tổng quan' },
   { href: '/learning-path', label: 'Lộ trình' },
   { href: '/practice/new', label: 'Luyện tập' },
   { href: '/weakness', label: 'Điểm yếu' },
 ] as const;
 
-// First letter of name for the fallback avatar — falls back to '?' if no name.
-const initialOf = (name?: string) =>
-  (name?.trim()?.[0] ?? '?').toUpperCase();
+const initialOf = (name?: string) => (name?.trim()?.[0] ?? '?').toUpperCase();
+
+const isActiveLink = (href: string, pathname: string) =>
+  href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
 
 export function AppHeader() {
   const { user } = useAuth();
   const pathname = usePathname();
 
   return (
-    <header className="border-b bg-card">
+    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         {/* Logo + nav */}
-        <div className="flex items-center gap-4 min-w-0">
-          <Link href="/dashboard" className="text-base font-semibold shrink-0">
-            AI Learning
+        <div className="flex min-w-0 items-center gap-4">
+          <Link href="/dashboard" className="group flex shrink-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 transition-transform group-hover:scale-105">
+              <GraduationCapMark />
+            </span>
+            <span className="text-sm font-semibold tracking-tight text-zinc-900">
+              AI Learning Assistant
+            </span>
           </Link>
-          <nav className="hidden sm:flex items-center gap-1">
+          <nav className="hidden items-center gap-1 sm:flex">
             {NAV_LINKS.map(({ href, label }) => {
-              // Active: exact match for dashboard, prefix match for sub-routes
-              const isActive =
-                href === '/dashboard'
-                  ? pathname === '/dashboard'
-                  : pathname.startsWith(href);
+              const active = isActiveLink(href, pathname);
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
-                    isActive
-                      ? 'bg-accent font-medium text-accent-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                  className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                    active
+                      ? 'bg-zinc-900 font-medium text-white'
+                      : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
                   }`}
                 >
                   {label}
@@ -54,26 +57,26 @@ export function AppHeader() {
           </nav>
         </div>
 
-        {/* Avatar + tên → trang Profile (đăng xuất nằm trong trang Profile) */}
+        {/* Avatar + name → Profile (logout lives in Profile) */}
         {user && (
           <Link
             href="/profile"
             title="Xem hồ sơ"
-            className="flex items-center gap-2 shrink-0 rounded-full pl-1 pr-3 py-1 text-sm transition hover:bg-accent"
+            className="flex shrink-0 items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm transition hover:bg-zinc-100"
           >
             {user.profile.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={user.profile.avatarUrl}
                 alt={user.profile.name || 'Avatar'}
-                className="h-9 w-9 rounded-full object-cover border"
+                className="h-9 w-9 rounded-full border border-zinc-200 object-cover"
               />
             ) : (
-              <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold border">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
                 {initialOf(user.profile.name)}
               </div>
             )}
-            <span className="font-medium hidden sm:inline">
+            <span className="hidden font-medium text-zinc-900 sm:inline">
               {user.profile.name || 'Hồ sơ'}
             </span>
           </Link>
@@ -81,20 +84,17 @@ export function AppHeader() {
       </div>
 
       {/* Mobile nav */}
-      <div className="sm:hidden flex items-center gap-1 px-4 pb-2 overflow-x-auto">
+      <div className="flex items-center gap-1 overflow-x-auto px-4 pb-2 sm:hidden">
         {NAV_LINKS.map(({ href, label }) => {
-          const isActive =
-            href === '/dashboard'
-              ? pathname === '/dashboard'
-              : pathname.startsWith(href);
+          const active = isActiveLink(href, pathname);
           return (
             <Link
               key={href}
               href={href}
-              className={`shrink-0 rounded-md px-3 py-1 text-xs transition-colors ${
-                isActive
-                  ? 'bg-accent font-medium text-accent-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              className={`shrink-0 rounded-lg px-3 py-1 text-xs transition-colors ${
+                active
+                  ? 'bg-zinc-900 font-medium text-white'
+                  : 'text-zinc-600 hover:bg-zinc-100'
               }`}
             >
               {label}
@@ -103,5 +103,15 @@ export function AppHeader() {
         })}
       </div>
     </header>
+  );
+}
+
+// Graduation-cap glyph (white on dark) — same mark as the auth screens.
+function GraduationCapMark() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="white" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 10 12 5 2 10l10 5 10-5Z" />
+      <path d="M6 12v5c0 1 2.7 2.5 6 2.5s6-1.5 6-2.5v-5" />
+    </svg>
   );
 }

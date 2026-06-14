@@ -35,6 +35,18 @@ function MilestoneStudyInner({ id }: { id: string }) {
   const [starting, setStarting] = useState(false);
   const [startErr, setStartErr] = useState<string | null>(null);
   const [existingId, setExistingId] = useState<string | null>(null);
+  // Đếm số giây trôi qua khi đang sinh câu hỏi luyện tập.
+  const [elapsed, setElapsed] = useState(0);
+
+  // Bật/tắt đồng hồ theo trạng thái starting; reset về 0 khi dừng.
+  useEffect(() => {
+    if (!starting) {
+      setElapsed(0);
+      return;
+    }
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [starting]);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +93,15 @@ function MilestoneStudyInner({ id }: { id: string }) {
       </div>
     );
   }
+
+  // Khoảng ngày tích lũy của chặng đang xem: cộng dồn estimatedDays các chặng trước.
+  const dayOffset = path.milestones
+    .slice(0, mIdx)
+    .reduce((sum, m) => sum + Math.max(1, m.estimatedDays || 1), 0);
+  const daySpan = Math.max(1, milestone.estimatedDays || 1);
+  const dayStart = dayOffset + 1;
+  const dayEnd = dayOffset + daySpan;
+  const dayRangeLabel = dayStart === dayEnd ? `Ngày ${dayStart}` : `Ngày ${dayStart}–${dayEnd}`;
 
   // Topics của chặng — lọc từ subject theo topicIds, giữ thứ tự subject.
   const topics: Topic[] = (subject?.topics ?? []).filter((t) =>
@@ -138,6 +159,7 @@ function MilestoneStudyInner({ id }: { id: string }) {
         <section>
           <h1 className="text-2xl font-semibold tracking-tight">{milestone.title}</h1>
           <div className="flex flex-wrap items-center gap-2 mt-2">
+            <Badge variant="outline" className="font-medium">{dayRangeLabel}</Badge>
             <Badge variant="secondary">{diffLabels[milestone.difficulty] ?? `Độ khó ${milestone.difficulty}`}</Badge>
             <span className="text-sm text-muted-foreground">~{milestone.estimatedDays} ngày</span>
           </div>
@@ -254,7 +276,7 @@ function MilestoneStudyInner({ id }: { id: string }) {
         <div className="flex justify-end">
           <Button onClick={handleStartPractice} disabled={starting} size="lg" className="gap-2">
             <Play className="h-4 w-4" />
-            {starting ? 'Đang sinh câu hỏi...' : 'Luyện tập chặng này'}
+            {starting ? `Đang sinh câu hỏi... ${elapsed}s` : 'Luyện tập chặng này'}
           </Button>
         </div>
       </main>

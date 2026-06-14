@@ -87,7 +87,8 @@ export const computePracticeResults = (
   return {
     score: total > 0 ? Math.round((correct / total) * 100) : 0,
     accuracyPercent: total > 0 ? Math.round((correct / total) * 100) : 0,
-    avgTimePerQuestion: total > 0 ? Math.round(totalTime / total) : 0,
+    // Số thực, làm tròn 1 chữ số thập phân (vd 4.7s) thay vì giây nguyên.
+    avgTimePerQuestion: total > 0 ? Math.round((totalTime / total) * 10) / 10 : 0,
     weakTopicIds,
   };
 };

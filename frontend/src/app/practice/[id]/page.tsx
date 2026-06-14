@@ -5,7 +5,7 @@
 //   completed   → results + per-question review
 //   abandoned   → informational message
 
-import { use, useCallback, useEffect, useState } from 'react';
+import { use, useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ProtectedRoute } from '@/components/protected-route';
@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { practiceApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
+import { QuestionContent } from '@/components/question-content';
 import type { PracticeSession, PracticeQuestion } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -77,7 +78,7 @@ function ResultsView({ session }: { session: PracticeSession }) {
                       {correct ? 'Đúng' : 'Sai'}
                     </Badge>
                   </div>
-                  <p className="text-sm leading-relaxed">{content.questionText}</p>
+                  <QuestionContent text={content.questionText} className="text-sm leading-relaxed" />
                 </CardHeader>
                 <CardContent className="space-y-1">
                   {content.options.map((opt) => {
@@ -90,7 +91,7 @@ function ResultsView({ session }: { session: PracticeSession }) {
                     return (
                       <div key={opt.id} className={cls}>
                         <span className="mr-2 font-semibold">{opt.id.toUpperCase()}.</span>
-                        {opt.text}
+                        <QuestionContent text={opt.text} className="inline" />
                         {isUserAnswer && !isCorrectAnswer && (
                           <span className="ml-2 text-xs text-destructive">(Bạn chọn)</span>
                         )}
@@ -124,7 +125,7 @@ function ActiveSessionView({
   onAbandon,
 }: {
   session: PracticeSession;
-  onAnswer: (questionId: string, answer: string) => Promise<void>;
+  onAnswer: (questionId: string, answer: string, timeSpentSeconds: number) => Promise<void>;
   onFinish: () => Promise<void>;
   onAbandon: () => Promise<void>;
 }) {
@@ -137,9 +138,14 @@ function ActiveSessionView({
   const [answering, setAnswering] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [abandoning, setAbandoning] = useState(false);
+  // Mốc thời gian bắt đầu câu hiện tại — để đo thời gian làm mỗi câu.
+  const questionStartRef = useRef<number>(Date.now());
 
-  // Reset selection when question changes
-  useEffect(() => { setSelected(''); }, [currentQ?.questionId]);
+  // Reset lựa chọn + mốc thời gian mỗi khi đổi câu.
+  useEffect(() => {
+    setSelected('');
+    questionStartRef.current = Date.now();
+  }, [currentQ?.questionId]);
 
   const answeredCount = questions.filter((q) => q.userAnswer != null).length;
   const diff = difficultyLabels[session.adaptiveState.currentDifficulty] ?? { label: '—', variant: 'secondary' as const };
@@ -149,7 +155,9 @@ function ActiveSessionView({
     if (!selected) { toast.error('Vui lòng chọn đáp án.'); return; }
     setAnswering(true);
     try {
-      await onAnswer(currentQ.questionId, selected);
+      // Thời gian làm câu = chênh lệch từ lúc câu hiển thị tới lúc trả lời (giây).
+      const elapsedSec = Math.max(0, Math.round((Date.now() - questionStartRef.current) / 1000));
+      await onAnswer(currentQ.questionId, selected, elapsedSec);
     } finally {
       setAnswering(false);
     }
@@ -220,7 +228,9 @@ function ActiveSessionView({
       {/* Question card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base leading-relaxed">{content.questionText}</CardTitle>
+          <CardTitle className="text-base leading-relaxed">
+            <QuestionContent text={content.questionText} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {content.options.map((opt) => (
@@ -229,14 +239,14 @@ function ActiveSessionView({
               type="button"
               onClick={() => !answering && setSelected(opt.id)}
               disabled={answering}
-              className={`w-full rounded-md border px-4 py-3 text-left text-sm transition-colors ${
+              className={`flex w-full items-start gap-2 rounded-md border px-4 py-3 text-left text-sm transition-colors ${
                 selected === opt.id
                   ? 'border-primary bg-primary/10'
                   : 'border-input hover:bg-accent'
               } ${answering ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              <span className="mr-2 font-semibold">{opt.id.toUpperCase()}.</span>
-              {opt.text}
+              <span className="font-semibold">{opt.id.toUpperCase()}.</span>
+              <QuestionContent text={opt.text} className="min-w-0 flex-1" />
             </button>
           ))}
         </CardContent>
@@ -298,9 +308,13 @@ function PracticeSessionInner({ id }: { id: string }) {
     return () => { active = false; };
   }, [id]);
 
-  const handleAnswer = useCallback(async (questionId: string, answer: string) => {
+  const handleAnswer = useCallback(async (
+    questionId: string,
+    answer: string,
+    timeSpentSeconds: number,
+  ) => {
     try {
-      const updated = await practiceApi.answer(id, { questionId, answer });
+      const updated = await practiceApi.answer(id, { questionId, answer, timeSpentSeconds });
       setSession(updated);
     } catch (err) {
       const msg = getErrorMessage(err);

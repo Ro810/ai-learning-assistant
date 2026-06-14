@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { assessmentApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
+import { QuestionContent } from '@/components/question-content';
+import { AssessmentTimer } from '@/components/assessment-timer';
 import type { Assessment } from '@/lib/types';
 
 function TakeAssessmentInner({ id }: { id: string }) {
@@ -73,9 +75,10 @@ function TakeAssessmentInner({ id }: { id: string }) {
     setAnswers((prev) => ({ ...prev, [currentQ.questionId]: optionId }));
   };
 
-  const handleSubmit = async () => {
-    if (!assessment) return;
-    if (answeredCount < questions.length) {
+  // skipConfirm=true khi hết giờ tự nộp — bỏ qua hỏi xác nhận.
+  const handleSubmit = async (skipConfirm = false) => {
+    if (!assessment || submitting) return;
+    if (!skipConfirm && answeredCount < questions.length) {
       const skipped = questions.length - answeredCount;
       const ok = confirm(
         `Bạn còn ${skipped} câu chưa trả lời. Vẫn nộp bài?`,
@@ -139,16 +142,46 @@ function TakeAssessmentInner({ id }: { id: string }) {
   const total = questions.length;
   const isLast = currentIdx === total - 1;
   const selected = answers[currentQ.questionId];
+  const timing = assessment.timing;
+
+  // Hết giờ 1 câu (per_question): chưa phải câu cuối → sang câu kế; câu cuối → nộp.
+  const handleQuestionTimeout = () => {
+    if (currentIdx < total - 1) {
+      setCurrentIdx((i) => Math.min(total - 1, i + 1));
+    } else {
+      void handleSubmit(true);
+    }
+  };
+
+  // Hết giờ cả đề (per_exam): tự nộp bài.
+  const handleExamTimeout = () => {
+    toast.info('Hết giờ làm bài — tự động nộp.');
+    void handleSubmit(true);
+  };
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-2xl px-4 py-6 space-y-4">
-        <div className="flex items-center justify-between text-sm">
+        <div className="flex items-center justify-between gap-2 text-sm">
           <span>
             Câu <strong>{currentIdx + 1}</strong> / {total}
           </span>
-          <span className="text-muted-foreground">Đã trả lời: {answeredCount}/{total}</span>
+          <div className="flex items-center gap-3">
+            {timing && (
+              <AssessmentTimer
+                timing={timing}
+                active={!submitting}
+                questionKey={
+                  timing.mode === 'per_question' ? currentQ.questionId : undefined
+                }
+                onTimeout={
+                  timing.mode === 'per_exam' ? handleExamTimeout : handleQuestionTimeout
+                }
+              />
+            )}
+            <span className="text-muted-foreground">Đã trả lời: {answeredCount}/{total}</span>
+          </div>
         </div>
 
         <div className="h-2 w-full rounded-full bg-muted">
@@ -161,7 +194,7 @@ function TakeAssessmentInner({ id }: { id: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base leading-relaxed">
-              {currentQ.questionSnapshot.content.questionText}
+              <QuestionContent text={currentQ.questionSnapshot.content.questionText} />
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -172,14 +205,14 @@ function TakeAssessmentInner({ id }: { id: string }) {
                   key={opt.id}
                   type="button"
                   onClick={() => handleSelect(opt.id)}
-                  className={`w-full rounded-md border px-4 py-3 text-left text-sm transition-colors ${
+                  className={`flex w-full items-start gap-2 rounded-md border px-4 py-3 text-left text-sm transition-colors ${
                     active
                       ? 'border-primary bg-primary/10'
                       : 'border-input hover:bg-accent'
                   }`}
                 >
-                  <span className="mr-2 font-semibold">{opt.id.toUpperCase()}.</span>
-                  {opt.text}
+                  <span className="font-semibold">{opt.id.toUpperCase()}.</span>
+                  <QuestionContent text={opt.text} className="min-w-0 flex-1" />
                 </button>
               );
             })}
@@ -202,7 +235,7 @@ function TakeAssessmentInner({ id }: { id: string }) {
           </Button>
 
           {isLast ? (
-            <Button onClick={handleSubmit} disabled={submitting}>
+            <Button onClick={() => handleSubmit()} disabled={submitting}>
               {submitting ? 'Đang chấm...' : 'Nộp bài'}
             </Button>
           ) : (
