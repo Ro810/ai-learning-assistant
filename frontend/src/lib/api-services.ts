@@ -254,6 +254,31 @@ export const practiceApi = {
   },
 };
 
+// ----- AI hỏi đáp (giải thích thêm về câu hỏi) -----
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export const aiApi = {
+  explainQuestion: async (input: {
+    question: {
+      questionText: string;
+      options?: Array<{ id: string; text: string }>;
+      correctAnswer?: string;
+      explanation?: string;
+    };
+    messages: ChatMessage[];
+  }) => {
+    const res = await api.post<Envelope<{ reply: string }>>(
+      '/ai/explain-question',
+      input,
+    );
+    return unwrap(res.data).reply;
+  },
+};
+
 // ----- Content Feedback (đánh giá chất lượng nội dung Gemini) -----
 
 export type FeedbackTarget = 'question' | 'learning_path';

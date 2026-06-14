@@ -19,6 +19,7 @@ import { practiceApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import { QuestionContent } from '@/components/question-content';
 import { FeedbackButtons } from '@/components/feedback-buttons';
+import { AskAiButton } from '@/components/ask-ai-button';
 import type { PracticeSession, PracticeQuestion } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -107,8 +108,9 @@ function ResultsView({ session }: { session: PracticeSession }) {
                       <span className="font-medium">Giải thích:</span> {content.explanation}
                     </p>
                   )}
-                  <div className="pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                     <FeedbackButtons targetType="question" targetId={q.questionId} label="Câu hỏi này:" />
+                    <AskAiButton question={content} />
                   </div>
                 </CardContent>
               </Card>
