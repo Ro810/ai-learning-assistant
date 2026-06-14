@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { learningPathApi, practiceApi, subjectApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import { buildDayBounds, dayRangeLabel, computeWeekTasks } from '@/lib/learning-path-week';
+import { FeedbackButtons } from '@/components/feedback-buttons';
 import type { LearningPath, PracticeSessionSummary, Subject } from '@/lib/types';
 
 const difficultyLabels: Record<number, { label: string; variant: 'default' | 'secondary' | 'destructive' }> = {
@@ -235,6 +236,9 @@ function LearningPathDetailInner({ id }: { id: string }) {
             />
           </div>
         </div>
+
+        {/* Đánh giá chất lượng lộ trình do AI sinh */}
+        <FeedbackButtons targetType="learning_path" targetId={path._id} label="Lộ trình này:" />
 
         {/* Việc tuần này — gom các chặng cần học trong 7 ngày tới */}
         {path.milestones.length > 0 && (

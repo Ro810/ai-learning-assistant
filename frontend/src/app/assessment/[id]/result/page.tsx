@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { assessmentApi, practiceApi, subjectApi } from '@/lib/api-services';
 import { getErrorMessage } from '@/lib/api-client';
 import { QuestionContent } from '@/components/question-content';
+import { FeedbackButtons } from '@/components/feedback-buttons';
 import type { Assessment, Subject } from '@/lib/types';
 
 // Ngưỡng điểm coi là "cần cải thiện" — dưới mức này hệ thống gợi ý luyện tập.
@@ -250,6 +251,9 @@ function ResultInner({ id }: { id: string }) {
                       <strong>Giải thích:</strong> {q.questionSnapshot.content.explanation}
                     </p>
                   )}
+                  <div className="pt-1">
+                    <FeedbackButtons targetType="question" targetId={q.questionId} label="Câu hỏi này:" />
+                  </div>
                 </div>
               );
             })}

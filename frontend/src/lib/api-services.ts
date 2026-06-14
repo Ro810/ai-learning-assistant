@@ -254,6 +254,28 @@ export const practiceApi = {
   },
 };
 
+// ----- Content Feedback (đánh giá chất lượng nội dung Gemini) -----
+
+export type FeedbackTarget = 'question' | 'learning_path';
+export type FeedbackRating = 'up' | 'down';
+
+export const feedbackApi = {
+  submit: async (input: {
+    targetType: FeedbackTarget;
+    targetId: string;
+    rating: FeedbackRating;
+    reason?: string;
+  }) => {
+    await api.post('/feedback', input);
+  },
+  getMine: async (targetType: FeedbackTarget, targetId: string) => {
+    const res = await api.get<Envelope<{ feedback: { rating: FeedbackRating } | null }>>(
+      `/feedback/me?targetType=${targetType}&targetId=${targetId}`,
+    );
+    return unwrap(res.data).feedback;
+  },
+};
+
 // ----- User -----
 
 export const userApi = {
